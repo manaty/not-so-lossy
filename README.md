@@ -7,6 +7,13 @@ This project aims to demonstrate a novel approach to image compression where inf
 ## Concept
 Traditional lossy compression discards the same information across all compressed copies. This project implements a smart compression strategy where different devices/agents preserve different aspects of the original image. By combining multiple "differently-lossy" versions, we can reconstruct an image closer to the original than any single compressed version could provide.
 
+### Deterministic Compression
+Each device's compression strategy is deterministically derived from its unique ID (e.g., MAC address):
+- No coordination needed between devices
+- Given a device ID, we know exactly what information was preserved
+- Reconstruction algorithm can perfectly account for what each device contributed
+- Zero metadata overhead - the strategy is implicit in the device ID
+
 ## Use Case
 When sharing photos across devices with storage constraints:
 - Each device compresses to meet its storage limits

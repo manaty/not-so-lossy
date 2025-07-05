@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Not-So-Lossy: Distributed Image Compression Demo</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Not-So-Lossy</h1>
+      <p>Distributed Lossy Image Compression Demo</p>
+    </header>
+
+    <main>
+      <!-- Configuration Section -->
+      <section class="config-section">
+        <h2>Configuration</h2>
+        <div class="config-controls">
+          <div class="control-group">
+            <label for="device-count">Number of Devices:</label>
+            <input type="number" id="device-count" min="1" max="10" value="3">
+          </div>
+          <div class="control-group">
+            <label for="image-upload">Upload Image:</label>
+            <input type="file" id="image-upload" accept="image/*">
+          </div>
+          <button id="process-btn" disabled>Process Image</button>
+        </div>
+        
+        <!-- Sample Images -->
+        <div class="sample-images">
+          <h3>Or choose a test image:</h3>
+          <div class="sample-gallery">
+            <div class="sample-image" data-src="../examples/gradient.png" title="Smooth gradients">
+              <img src="../examples/gradient.png" alt="Gradient">
+              <span>Gradient</span>
+            </div>
+            <div class="sample-image" data-src="../examples/checkerboard.png" title="High frequency pattern">
+              <img src="../examples/checkerboard.png" alt="Checkerboard">
+              <span>Checkerboard</span>
+            </div>
+            <div class="sample-image" data-src="../examples/colorbars.png" title="Color test pattern">
+              <img src="../examples/colorbars.png" alt="Color Bars">
+              <span>Color Bars</span>
+            </div>
+            <div class="sample-image" data-src="../examples/circles.png" title="Radial frequency pattern">
+              <img src="../examples/circles.png" alt="Circles">
+              <span>Circles</span>
+            </div>
+            <div class="sample-image" data-src="../examples/mixed.png" title="Mixed frequency content">
+              <img src="../examples/mixed.png" alt="Mixed">
+              <span>Mixed</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Results Section -->
+      <section id="results-section" class="results-section hidden">
+        <h2>Results</h2>
+        
+        <!-- Original and Reconstructed Images -->
+        <div class="image-comparison">
+          <div class="image-container">
+            <h3>Original Image</h3>
+            <canvas id="original-canvas"></canvas>
+            <div class="image-info">
+              <span>Size: <span id="original-size">-</span></span>
+            </div>
+          </div>
+          
+          <div class="image-container">
+            <h3>Reconstructed Image</h3>
+            <canvas id="reconstructed-canvas"></canvas>
+            <div class="image-info">
+              <span>PSNR: <span id="psnr-value">-</span> dB</span>
+              <span>Total Size: <span id="total-size">-</span></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Device Cards -->
+        <div class="devices-section">
+          <h3>Device Compressions</h3>
+          <div id="device-cards" class="device-cards">
+            <!-- Device cards will be dynamically inserted here -->
+          </div>
+        </div>
+      </section>
+
+      <!-- Info Section -->
+      <section class="info-section">
+        <h2>How it works</h2>
+        <p>
+          Each device uses its unique ID to deterministically compress the image differently:
+        </p>
+        <ul>
+          <li>Different frequency coefficients are preserved by each device</li>
+          <li>Different quantization matrices are applied</li>
+          <li>The reconstruction combines all preserved information</li>
+          <li>More devices = better reconstruction quality</li>
+        </ul>
+      </section>
+    </main>
+
+    <footer>
+      <p>Research project on distributed lossy compression</p>
+    </footer>
+  </div>
+
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,359 @@
+import { DeterministicStrategyGenerator } from '../core/deterministic-strategy';
+import { DeviceStrategy, CompressedImage, CompressedBlock } from '../core/types';
+import { dct2d, idct2d, quantize, dequantize, zigzagOrder, inverseZigzag } from '../utils/dct';
+
+export interface ImageData {
+  data: Uint8ClampedArray;
+  width: number;
+  height: number;
+}
+
+export interface CompressionResult {
+  compressed: CompressedImage;
+  size: number;
+  preview: ImageData;
+}
+
+/**
+ * Converts RGB to YCbCr color space
+ */
+function rgbToYCbCr(r: number, g: number, b: number): { y: number; cb: number; cr: number } {
+  const y = 0.299 * r + 0.587 * g + 0.114 * b;
+  const cb = 128 + 0.564 * (b - y);
+  const cr = 128 + 0.713 * (r - y);
+  return { y, cb, cr };
+}
+
+/**
+ * Converts YCbCr to RGB color space
+ */
+function yCbCrToRgb(y: number, cb: number, cr: number): { r: number; g: number; b: number } {
+  const r = y + 1.402 * (cr - 128);
+  const g = y - 0.344 * (cb - 128) - 0.714 * (cr - 128);
+  const b = y + 1.772 * (cb - 128);
+  
+  return {
+    r: Math.max(0, Math.min(255, Math.round(r))),
+    g: Math.max(0, Math.min(255, Math.round(g))),
+    b: Math.max(0, Math.min(255, Math.round(b)))
+  };
+}
+
+/**
+ * Extract 8x8 block from image channel
+ */
+function extractBlock(channel: number[][], x: number, y: number): number[][] {
+  const block: number[][] = Array(8).fill(0).map(() => Array(8).fill(0));
+  
+  for (let i = 0; i < 8; i++) {
+    for (let j = 0; j < 8; j++) {
+      const px = x + j;
+      const py = y + i;
+      
+      // Handle edge cases with padding
+      if (py < channel.length && px < channel[0].length) {
+        block[i][j] = channel[py][px] - 128; // Center around 0
+      }
+    }
+  }
+  
+  return block;
+}
+
+/**
+ * Compress an image using device-specific strategy
+ */
+export function compressImage(
+  imageData: ImageData, 
+  deviceId: string, 
+  qualityFactor: number = 1.0
+): CompressionResult {
+  const strategy = DeterministicStrategyGenerator.generateStrategy(deviceId);
+  const { width, height, data } = imageData;
+  
+  // Convert to YCbCr channels
+  const yChannel: number[][] = Array(height).fill(0).map(() => Array(width).fill(0));
+  const cbChannel: number[][] = Array(height).fill(0).map(() => Array(width).fill(0));
+  const crChannel: number[][] = Array(height).fill(0).map(() => Array(width).fill(0));
+  
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = (y * width + x) * 4;
+      const { y: Y, cb, cr } = rgbToYCbCr(data[idx], data[idx + 1], data[idx + 2]);
+      yChannel[y][x] = Y;
+      cbChannel[y][x] = cb;
+      crChannel[y][x] = cr;
+    }
+  }
+  
+  // Process in 8x8 blocks
+  const blocks: CompressedBlock[] = [];
+  const blockWidth = Math.ceil(width / 8);
+  const blockHeight = Math.ceil(height / 8);
+  
+  for (let by = 0; by < blockHeight; by++) {
+    for (let bx = 0; bx < blockWidth; bx++) {
+      const x = bx * 8;
+      const y = by * 8;
+      
+      const compressedBlock: CompressedBlock = {
+        position: { x: bx, y: by }
+      };
+      
+      // Process each channel with strategy-specific weights
+      const channels = [
+        { data: yChannel, weight: strategy.channelWeights.y, key: 'yData' },
+        { data: cbChannel, weight: strategy.channelWeights.cb, key: 'cbData' },
+        { data: crChannel, weight: strategy.channelWeights.cr, key: 'crData' }
+      ];
+      
+      for (const channel of channels) {
+        // Skip channel if weight is too low
+        if (channel.weight < 0.1) continue;
+        
+        const block = extractBlock(channel.data, x, y);
+        const dctBlock = dct2d(block);
+        
+        // Apply quality-adjusted quantization (lower quality = higher quantization values)
+        const qualityMultiplier = 1 + (1 - qualityFactor) * 9; // 1x at quality=1, 10x at quality=0
+        const adjustedQuant = strategy.quantizationMatrix.map(row => 
+          row.map(val => Math.round(val * qualityMultiplier / channel.weight))
+        );
+        
+        const quantized = quantize(dctBlock, adjustedQuant);
+        const zigzag = zigzagOrder(quantized);
+        
+        // Apply frequency mask
+        const masked = zigzag.map((coeff, idx) => 
+          strategy.frequencyMask[idx] ? coeff : 0
+        );
+        
+        // Store only non-zero coefficients for compression
+        const nonZero = masked.filter(c => c !== 0);
+        if (nonZero.length > 0) {
+          (compressedBlock as any)[channel.key] = masked;
+        }
+      }
+      
+      blocks.push(compressedBlock);
+    }
+  }
+  
+  const compressed: CompressedImage = {
+    deviceId,
+    width,
+    height,
+    blocks
+  };
+  
+  // Calculate size (count non-zero coefficients and their magnitude)
+  let size = 100; // Base overhead for headers
+  blocks.forEach(block => {
+    if (block.yData) {
+      const nonZero = block.yData.filter(c => c !== 0);
+      size += nonZero.length * 2; // Position encoding
+      size += nonZero.reduce((sum, c) => sum + Math.ceil(Math.log2(Math.abs(c) + 1)), 0) / 8; // Value encoding
+    }
+    if (block.cbData) {
+      const nonZero = block.cbData.filter(c => c !== 0);
+      size += nonZero.length * 2;
+      size += nonZero.reduce((sum, c) => sum + Math.ceil(Math.log2(Math.abs(c) + 1)), 0) / 8;
+    }
+    if (block.crData) {
+      const nonZero = block.crData.filter(c => c !== 0);
+      size += nonZero.length * 2;
+      size += nonZero.reduce((sum, c) => sum + Math.ceil(Math.log2(Math.abs(c) + 1)), 0) / 8;
+    }
+  });
+  
+  // Generate preview
+  const preview = decompressImage(compressed, strategy);
+  
+  return { compressed, size, preview };
+}
+
+/**
+ * Decompress an image using the device's strategy
+ */
+export function decompressImage(
+  compressed: CompressedImage, 
+  strategy?: DeviceStrategy
+): ImageData {
+  if (!strategy) {
+    strategy = DeterministicStrategyGenerator.generateStrategy(compressed.deviceId);
+  }
+  
+  const { width, height, blocks } = compressed;
+  const imageData = new Uint8ClampedArray(width * height * 4);
+  
+  // Reconstruct YCbCr channels
+  const yChannel: number[][] = Array(height).fill(0).map(() => Array(width).fill(0));
+  const cbChannel: number[][] = Array(height).fill(0).map(() => Array(width).fill(128));
+  const crChannel: number[][] = Array(height).fill(0).map(() => Array(width).fill(128));
+  
+  // Process each block
+  blocks.forEach(block => {
+    const { position } = block;
+    const x = position.x * 8;
+    const y = position.y * 8;
+    
+    // Decompress each channel
+    const channels = [
+      { data: block.yData, output: yChannel, quantMatrix: strategy!.quantizationMatrix },
+      { data: block.cbData, output: cbChannel, quantMatrix: strategy!.quantizationMatrix },
+      { data: block.crData, output: crChannel, quantMatrix: strategy!.quantizationMatrix }
+    ];
+    
+    for (const channel of channels) {
+      if (!channel.data) continue;
+      
+      // Inverse zigzag
+      const dctQuantized = inverseZigzag(channel.data);
+      
+      // Dequantize
+      const dctBlock = dequantize(dctQuantized, channel.quantMatrix);
+      
+      // Inverse DCT
+      const spatialBlock = idct2d(dctBlock);
+      
+      // Place block in channel
+      for (let i = 0; i < 8; i++) {
+        for (let j = 0; j < 8; j++) {
+          const px = x + j;
+          const py = y + i;
+          
+          if (py < height && px < width) {
+            channel.output[py][px] = spatialBlock[i][j] + 128;
+          }
+        }
+      }
+    }
+  });
+  
+  // Convert back to RGB
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = (y * width + x) * 4;
+      const { r, g, b } = yCbCrToRgb(
+        yChannel[y][x],
+        cbChannel[y][x],
+        crChannel[y][x]
+      );
+      
+      imageData[idx] = r;
+      imageData[idx + 1] = g;
+      imageData[idx + 2] = b;
+      imageData[idx + 3] = 255;
+    }
+  }
+  
+  return { data: imageData, width, height };
+}
+
+/**
+ * Reconstruct image from multiple compressed versions
+ */
+export function reconstructFromMultiple(
+  compressedVersions: CompressedImage[]
+): ImageData {
+  if (compressedVersions.length === 0) {
+    throw new Error('No compressed versions provided');
+  }
+  
+  const { width, height } = compressedVersions[0];
+  const imageData = new Uint8ClampedArray(width * height * 4);
+  
+  // Collect all strategies
+  const strategies = compressedVersions.map(v => 
+    DeterministicStrategyGenerator.generateStrategy(v.deviceId)
+  );
+  
+  // Reconstruct YCbCr channels by combining all sources
+  const yChannel: number[][] = Array(height).fill(0).map(() => Array(width).fill(0));
+  const cbChannel: number[][] = Array(height).fill(0).map(() => Array(width).fill(128));
+  const crChannel: number[][] = Array(height).fill(0).map(() => Array(width).fill(128));
+  
+  const yWeights: number[][] = Array(height).fill(0).map(() => Array(width).fill(0));
+  const cbWeights: number[][] = Array(height).fill(0).map(() => Array(width).fill(0));
+  const crWeights: number[][] = Array(height).fill(0).map(() => Array(width).fill(0));
+  
+  // Process each version
+  compressedVersions.forEach((compressed, versionIdx) => {
+    const strategy = strategies[versionIdx];
+    const decompressed = decompressImage(compressed, strategy);
+    
+    // Add this version's contribution
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const idx = (y * width + x) * 4;
+        const { y: Y, cb, cr } = rgbToYCbCr(
+          decompressed.data[idx],
+          decompressed.data[idx + 1],
+          decompressed.data[idx + 2]
+        );
+        
+        // Weight by channel importance for this device
+        if (strategy.channelWeights.y > 0.1) {
+          yChannel[y][x] += Y * strategy.channelWeights.y;
+          yWeights[y][x] += strategy.channelWeights.y;
+        }
+        
+        if (strategy.channelWeights.cb > 0.1) {
+          cbChannel[y][x] += cb * strategy.channelWeights.cb;
+          cbWeights[y][x] += strategy.channelWeights.cb;
+        }
+        
+        if (strategy.channelWeights.cr > 0.1) {
+          crChannel[y][x] += cr * strategy.channelWeights.cr;
+          crWeights[y][x] += strategy.channelWeights.cr;
+        }
+      }
+    }
+  });
+  
+  // Average and convert back to RGB
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = (y * width + x) * 4;
+      
+      const Y = yWeights[y][x] > 0 ? yChannel[y][x] / yWeights[y][x] : 128;
+      const cb = cbWeights[y][x] > 0 ? cbChannel[y][x] / cbWeights[y][x] : 128;
+      const cr = crWeights[y][x] > 0 ? crChannel[y][x] / crWeights[y][x] : 128;
+      
+      const { r, g, b } = yCbCrToRgb(Y, cb, cr);
+      
+      imageData[idx] = r;
+      imageData[idx + 1] = g;
+      imageData[idx + 2] = b;
+      imageData[idx + 3] = 255;
+    }
+  }
+  
+  return { data: imageData, width, height };
+}
+
+/**
+ * Calculate PSNR between two images
+ */
+export function calculatePSNR(original: ImageData, compressed: ImageData): number {
+  if (original.width !== compressed.width || original.height !== compressed.height) {
+    throw new Error('Images must have same dimensions');
+  }
+  
+  let mse = 0;
+  const pixelCount = original.width * original.height;
+  
+  for (let i = 0; i < original.data.length; i += 4) {
+    // Only consider RGB channels, not alpha
+    for (let c = 0; c < 3; c++) {
+      const diff = original.data[i + c] - compressed.data[i + c];
+      mse += diff * diff;
+    }
+  }
+  
+  mse = mse / (pixelCount * 3);
+  
+  if (mse === 0) return Infinity;
+  
+  return 10 * Math.log10((255 * 255) / mse);
+}
