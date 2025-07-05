@@ -21,6 +21,7 @@ export interface CompressedImage {
   width: number;
   height: number;
   blocks: CompressedBlock[];
+  qualityFactor: number;
 }
 
 export interface CompressedBlock {

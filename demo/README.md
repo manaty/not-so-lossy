@@ -2,6 +2,10 @@
 
 This is an interactive demonstration of the distributed lossy image compression algorithm.
 
+## Important Note
+
+The demo requires test images to be copied to the public directory. This is done automatically when you run `npm run demo` or `npm test`.
+
 ## Running the Demo
 
 1. From the project root directory, install dependencies:

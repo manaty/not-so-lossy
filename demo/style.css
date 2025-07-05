@@ -108,6 +108,57 @@ section h2 {
   cursor: not-allowed;
 }
 
+/* Progress Indicator */
+.progress-container {
+  margin-top: 20px;
+  text-align: center;
+}
+
+.progress-spinner {
+  width: 40px;
+  height: 40px;
+  margin: 0 auto 15px;
+  border: 4px solid #ecf0f1;
+  border-top: 4px solid #3498db;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.progress-text {
+  font-size: 16px;
+  color: #555;
+  margin-bottom: 15px;
+}
+
+.progress-bar {
+  width: 100%;
+  max-width: 400px;
+  height: 20px;
+  background: #ecf0f1;
+  border-radius: 10px;
+  margin: 0 auto 10px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #3498db;
+  border-radius: 10px;
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+.progress-details {
+  font-size: 14px;
+  color: #7f8c8d;
+}
+
 /* Results Section */
 .hidden {
   display: none;
@@ -176,12 +227,16 @@ section h2 {
 }
 
 .device-card canvas {
-  width: 100%;
-  height: auto;
+  display: block;
+  margin: 0 auto 10px auto;
   border: 1px solid #ddd;
   border-radius: 4px;
-  margin-bottom: 10px;
   background: white;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  max-width: 100%;
+  height: auto;
 }
 
 .device-controls {
@@ -231,8 +286,13 @@ section h2 {
   transition: background 0.3s;
 }
 
-.recompress-btn:hover {
+.recompress-btn:hover:not(:disabled) {
   background: #c0392b;
+}
+
+.recompress-btn:disabled {
+  background: #95a5a6;
+  cursor: not-allowed;
 }
 
 /* Info Section */

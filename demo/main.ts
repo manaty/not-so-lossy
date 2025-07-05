@@ -1,5 +1,6 @@
 import { 
   compressImage, 
+  decompressImage,
   reconstructFromMultiple, 
   calculatePSNR,
   ImageData,
@@ -153,14 +154,34 @@ class ImageCompressionDemo {
     img.src = imagePath;
   }
 
-  private processImage(): void {
+  private async processImage(): Promise<void> {
     if (!this.originalImage) return;
+
+    // Show progress indicator
+    const progressContainer = document.getElementById('progress-container')!;
+    const progressFill = document.querySelector('.progress-fill') as HTMLElement;
+    const progressCurrent = document.getElementById('progress-current')!;
+    const progressTotal = document.getElementById('progress-total')!;
+    const processBtn = document.getElementById('process-btn') as HTMLButtonElement;
+    
+    progressContainer.classList.remove('hidden');
+    processBtn.disabled = true;
+    progressTotal.textContent = String(this.deviceCount);
+    progressCurrent.textContent = '0';
+    progressFill.style.width = '0%';
 
     // Clear previous devices
     this.devices = [];
 
     // Create devices with sequential IDs
     for (let i = 0; i < this.deviceCount; i++) {
+      // Update progress
+      progressCurrent.textContent = String(i);
+      progressFill.style.width = `${(i / this.deviceCount) * 100}%`;
+      
+      // Allow UI to update
+      await new Promise(resolve => setTimeout(resolve, 10));
+      
       const deviceId = `DEVICE-${String(i).padStart(3, '0')}`;
       
       // Initial compression at quality 1.0
@@ -174,6 +195,17 @@ class ImageCompressionDemo {
         currentSize: result.size
       });
     }
+
+    // Final progress update
+    progressCurrent.textContent = String(this.deviceCount);
+    progressFill.style.width = '100%';
+    
+    // Small delay to show completion
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    // Hide progress indicator
+    progressContainer.classList.add('hidden');
+    processBtn.disabled = false;
 
     // Show results section
     document.getElementById('results-section')!.classList.remove('hidden');
@@ -242,9 +274,18 @@ class ImageCompressionDemo {
       </div>
     `;
 
-    // Display device image
-    const preview = compressImage(this.originalImage!, device.id, device.currentQuality).preview;
-    this.displayImage(`device-canvas-${index}`, preview);
+    // Display device's decompressed image after DOM update
+    setTimeout(() => {
+      try {
+        console.log(`Decompressing device ${index}:`, device.currentCompressed);
+        const preview = decompressImage(device.currentCompressed);
+        console.log(`Preview for device ${index}:`, preview.width, 'x', preview.height, 'first pixels:', 
+          preview.data[0], preview.data[1], preview.data[2], preview.data[3]);
+        this.displayImage(`device-canvas-${index}`, preview);
+      } catch (error) {
+        console.error(`Error displaying device ${index}:`, error);
+      }
+    }, 0);
 
     // Add event listeners
     const qualitySlider = card.querySelector(`#quality-${index}`) as HTMLInputElement;
@@ -256,9 +297,20 @@ class ImageCompressionDemo {
       qualityValue.textContent = `${(quality * 100).toFixed(0)}%`;
     });
 
-    recompressBtn.addEventListener('click', () => {
+    recompressBtn.addEventListener('click', async () => {
       const quality = parseFloat(qualitySlider.value);
+      // Show loading state
+      recompressBtn.disabled = true;
+      recompressBtn.textContent = 'Processing...';
+      
+      // Allow UI to update
+      await new Promise(resolve => setTimeout(resolve, 10));
+      
       this.recompressDevice(index, quality);
+      
+      // Restore button state
+      recompressBtn.disabled = false;
+      recompressBtn.textContent = 'Recompress';
     });
 
     // Update compression ratio
@@ -273,7 +325,7 @@ class ImageCompressionDemo {
     const device = this.devices[deviceIndex];
     
     // Important: Recompress from the device's current compressed version, not the original
-    const decompressed = compressImage(this.originalImage!, device.id, device.currentQuality).preview;
+    const decompressed = decompressImage(device.currentCompressed);
     const result = compressImage(decompressed, device.id, quality);
     
     // Update device state
@@ -298,15 +350,38 @@ class ImageCompressionDemo {
 
   private displayImage(canvasId: string, imageData: ImageData): void {
     const canvas = document.getElementById(canvasId) as HTMLCanvasElement;
-    if (!canvas) return;
+    if (!canvas) {
+      console.error(`Canvas not found: ${canvasId}`);
+      return;
+    }
     
+    // Set canvas dimensions
     canvas.width = imageData.width;
     canvas.height = imageData.height;
     
-    const ctx = canvas.getContext('2d')!;
+    // Set CSS dimensions to maintain aspect ratio and fit within card
+    // Device cards have 15px padding on each side and ~300px min width
+    const maxWidth = 270; // 300px card - 30px total padding
+    const maxHeight = 200; // Reasonable max height for device cards
+    
+    const scaleX = maxWidth / imageData.width;
+    const scaleY = maxHeight / imageData.height;
+    const scale = Math.min(1, Math.min(scaleX, scaleY));
+    
+    canvas.style.width = `${Math.floor(imageData.width * scale)}px`;
+    canvas.style.height = `${Math.floor(imageData.height * scale)}px`;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      console.error(`Could not get 2d context for canvas: ${canvasId}`);
+      return;
+    }
+    
     const imgData = ctx.createImageData(imageData.width, imageData.height);
     imgData.data.set(imageData.data);
     ctx.putImageData(imgData, 0, 0);
+    
+    console.log(`Displayed image on ${canvasId}: ${imageData.width}x${imageData.height}, scale: ${scale}`);
   }
 
   private formatSize(bytes: number): string {

@@ -19,8 +19,8 @@ export interface CompressionResult {
  */
 function rgbToYCbCr(r: number, g: number, b: number): { y: number; cb: number; cr: number } {
   const y = 0.299 * r + 0.587 * g + 0.114 * b;
-  const cb = 128 + 0.564 * (b - y);
-  const cr = 128 + 0.713 * (r - y);
+  const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
+  const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
   return { y, cb, cr };
 }
 
@@ -29,7 +29,7 @@ function rgbToYCbCr(r: number, g: number, b: number): { y: number; cb: number; c
  */
 function yCbCrToRgb(y: number, cb: number, cr: number): { r: number; g: number; b: number } {
   const r = y + 1.402 * (cr - 128);
-  const g = y - 0.344 * (cb - 128) - 0.714 * (cr - 128);
+  const g = y - 0.344136 * (cb - 128) - 0.714136 * (cr - 128);
   const b = y + 1.772 * (cb - 128);
   
   return {
@@ -108,16 +108,24 @@ export function compressImage(
       ];
       
       for (const channel of channels) {
-        // Skip channel if weight is too low
-        if (channel.weight < 0.1) continue;
+        // Skip channel if weight is effectively zero
+        if (channel.weight < 0.001) continue;
         
         const block = extractBlock(channel.data, x, y);
         const dctBlock = dct2d(block);
         
         // Apply quality-adjusted quantization (lower quality = higher quantization values)
         const qualityMultiplier = 1 + (1 - qualityFactor) * 9; // 1x at quality=1, 10x at quality=0
-        const adjustedQuant = strategy.quantizationMatrix.map(row => 
-          row.map(val => Math.round(val * qualityMultiplier / channel.weight))
+        const adjustedQuant = strategy.quantizationMatrix.map((row, i) => 
+          row.map((val, j) => {
+            // Preserve DC coefficient better (position 0,0)
+            if (i === 0 && j === 0) {
+              // DC coefficient: use less aggressive quantization
+              const dcMultiplier = 1 + (1 - qualityFactor) * 2; // Max 3x instead of 10x
+              return Math.round(val * dcMultiplier);
+            }
+            return Math.round(val * qualityMultiplier);
+          })
         );
         
         const quantized = quantize(dctBlock, adjustedQuant);
@@ -143,7 +151,8 @@ export function compressImage(
     deviceId,
     width,
     height,
-    blocks
+    blocks,
+    qualityFactor
   };
   
   // Calculate size (count non-zero coefficients and their magnitude)
@@ -186,8 +195,8 @@ export function decompressImage(
   const { width, height, blocks } = compressed;
   const imageData = new Uint8ClampedArray(width * height * 4);
   
-  // Reconstruct YCbCr channels
-  const yChannel: number[][] = Array(height).fill(0).map(() => Array(width).fill(0));
+  // Reconstruct YCbCr channels (initialize with neutral values)
+  const yChannel: number[][] = Array(height).fill(0).map(() => Array(width).fill(128));
   const cbChannel: number[][] = Array(height).fill(0).map(() => Array(width).fill(128));
   const crChannel: number[][] = Array(height).fill(0).map(() => Array(width).fill(128));
   
@@ -197,11 +206,24 @@ export function decompressImage(
     const x = position.x * 8;
     const y = position.y * 8;
     
+    // Apply quality-adjusted quantization matrices for decompression
+    const qualityMultiplier = 1 + (1 - compressed.qualityFactor) * 9;
+    const dcMultiplier = 1 + (1 - compressed.qualityFactor) * 2;
+    
+    const adjustedQuantMatrix = strategy!.quantizationMatrix.map((row, i) => 
+      row.map((val, j) => {
+        if (i === 0 && j === 0) {
+          return Math.round(val * dcMultiplier);
+        }
+        return Math.round(val * qualityMultiplier);
+      })
+    );
+    
     // Decompress each channel
     const channels = [
-      { data: block.yData, output: yChannel, quantMatrix: strategy!.quantizationMatrix },
-      { data: block.cbData, output: cbChannel, quantMatrix: strategy!.quantizationMatrix },
-      { data: block.crData, output: crChannel, quantMatrix: strategy!.quantizationMatrix }
+      { data: block.yData, output: yChannel, quantMatrix: adjustedQuantMatrix },
+      { data: block.cbData, output: cbChannel, quantMatrix: adjustedQuantMatrix },
+      { data: block.crData, output: crChannel, quantMatrix: adjustedQuantMatrix }
     ];
     
     for (const channel of channels) {
@@ -270,8 +292,8 @@ export function reconstructFromMultiple(
   
   // Reconstruct YCbCr channels by combining all sources
   const yChannel: number[][] = Array(height).fill(0).map(() => Array(width).fill(0));
-  const cbChannel: number[][] = Array(height).fill(0).map(() => Array(width).fill(128));
-  const crChannel: number[][] = Array(height).fill(0).map(() => Array(width).fill(128));
+  const cbChannel: number[][] = Array(height).fill(0).map(() => Array(width).fill(0));
+  const crChannel: number[][] = Array(height).fill(0).map(() => Array(width).fill(0));
   
   const yWeights: number[][] = Array(height).fill(0).map(() => Array(width).fill(0));
   const cbWeights: number[][] = Array(height).fill(0).map(() => Array(width).fill(0));
@@ -293,17 +315,17 @@ export function reconstructFromMultiple(
         );
         
         // Weight by channel importance for this device
-        if (strategy.channelWeights.y > 0.1) {
+        if (strategy.channelWeights.y > 0.001) {
           yChannel[y][x] += Y * strategy.channelWeights.y;
           yWeights[y][x] += strategy.channelWeights.y;
         }
         
-        if (strategy.channelWeights.cb > 0.1) {
+        if (strategy.channelWeights.cb > 0.001) {
           cbChannel[y][x] += cb * strategy.channelWeights.cb;
           cbWeights[y][x] += strategy.channelWeights.cb;
         }
         
-        if (strategy.channelWeights.cr > 0.1) {
+        if (strategy.channelWeights.cr > 0.001) {
           crChannel[y][x] += cr * strategy.channelWeights.cr;
           crWeights[y][x] += strategy.channelWeights.cr;
         }

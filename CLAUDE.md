@@ -65,8 +65,13 @@ This project follows strict testing practices to ensure code quality and reliabi
 ### Test Structure
 - **Unit Tests**: Located in `tests/unit/` - Test individual functions in isolation
 - **Integration Tests**: Located in `tests/integration/` - Test composite functionality
-- **E2E Tests**: Located in `tests/e2e/` - Test complete workflows
+- **E2E Tests**: Located in `tests/e2e/` - Test complete workflows and demo functionality
 - **Test Fixtures**: Located in `tests/fixtures/` - Shared test data and utilities
+
+### Current Test Coverage
+- 74 tests total across unit, integration, and e2e
+- >98% code coverage
+- E2E tests verify demo UI structure and compression workflows
 
 ### Testing Rules
 1. **Every function must have unit tests** covering all code paths

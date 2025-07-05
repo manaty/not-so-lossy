@@ -29,29 +29,61 @@
           <button id="process-btn" disabled>Process Image</button>
         </div>
         
+        <!-- Progress Indicator -->
+        <div id="progress-container" class="progress-container hidden">
+          <div class="progress-spinner"></div>
+          <div class="progress-text">Processing image across devices...</div>
+          <div class="progress-bar">
+            <div class="progress-fill"></div>
+          </div>
+          <div class="progress-details">
+            <span id="progress-current">0</span> / <span id="progress-total">0</span> devices processed
+          </div>
+        </div>
+        
         <!-- Sample Images -->
         <div class="sample-images">
           <h3>Or choose a test image:</h3>
           <div class="sample-gallery">
-            <div class="sample-image" data-src="../examples/gradient.png" title="Smooth gradients">
-              <img src="../examples/gradient.png" alt="Gradient">
-              <span>Gradient</span>
+            <div class="sample-image" data-src="/images/white.png" title="Pure white image">
+              <img src="/images/white.png" alt="White">
+              <span>White</span>
             </div>
-            <div class="sample-image" data-src="../examples/checkerboard.png" title="High frequency pattern">
-              <img src="../examples/checkerboard.png" alt="Checkerboard">
+            <div class="sample-image" data-src="/images/checkerboard.png" title="High frequency pattern">
+              <img src="/images/checkerboard.png" alt="Checkerboard">
               <span>Checkerboard</span>
             </div>
-            <div class="sample-image" data-src="../examples/colorbars.png" title="Color test pattern">
-              <img src="../examples/colorbars.png" alt="Color Bars">
+            <div class="sample-image" data-src="/images/colorbars.png" title="Color test pattern">
+              <img src="/images/colorbars.png" alt="Color Bars">
               <span>Color Bars</span>
             </div>
-            <div class="sample-image" data-src="../examples/circles.png" title="Radial frequency pattern">
-              <img src="../examples/circles.png" alt="Circles">
+            <div class="sample-image" data-src="/images/circles.png" title="Radial frequency pattern">
+              <img src="/images/circles.png" alt="Circles">
               <span>Circles</span>
             </div>
-            <div class="sample-image" data-src="../examples/mixed.png" title="Mixed frequency content">
-              <img src="../examples/mixed.png" alt="Mixed">
+            <div class="sample-image" data-src="/images/mixed.png" title="Mixed frequency content">
+              <img src="/images/mixed.png" alt="Mixed">
               <span>Mixed</span>
+            </div>
+            <div class="sample-image" data-src="/images/im1.jpg" title="Sample image 1">
+              <img src="/images/im1.jpg" alt="Image 1">
+              <span>Image 1</span>
+            </div>
+            <div class="sample-image" data-src="/images/im2.jpg" title="Sample image 2">
+              <img src="/images/im2.jpg" alt="Image 2">
+              <span>Image 2</span>
+            </div>
+            <div class="sample-image" data-src="/images/im3.jpg" title="Sample image 3">
+              <img src="/images/im3.jpg" alt="Image 3">
+              <span>Image 3</span>
+            </div>
+            <div class="sample-image" data-src="/images/im4.jpg" title="Sample image 4">
+              <img src="/images/im4.jpg" alt="Image 4">
+              <span>Image 4</span>
+            </div>
+            <div class="sample-image" data-src="/images/im5.jpg" title="Sample image 5">
+              <img src="/images/im5.jpg" alt="Image 5">
+              <span>Image 5</span>
             </div>
           </div>
         </div>
