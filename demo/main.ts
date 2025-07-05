@@ -14,6 +14,8 @@ interface DeviceState {
   currentCompressed: CompressedImage;
   currentQuality: number;
   currentSize: number;
+  memoryLimit: number; // in bytes
+  targetSize: number;  // current target size in bytes
 }
 
 class ImageCompressionDemo {
@@ -183,16 +185,53 @@ class ImageCompressionDemo {
       await new Promise(resolve => setTimeout(resolve, 10));
       
       const deviceId = `DEVICE-${String(i).padStart(3, '0')}`;
+      const memoryLimit = 10 * 1024 * 1024; // 10MB
       
-      // Initial compression at quality 1.0
-      const result = compressImage(this.originalImage, deviceId, 1.0);
+      // Always start with quality 1.0 (least compression)
+      let result = compressImage(this.originalImage, deviceId, 1.0);
+      let initialQuality = 1.0;
+      
+      // Only compress more if the result exceeds memory limit
+      if (result.size > memoryLimit) {
+        // Need to find appropriate quality
+        let low = 0.1;
+        let high = 1.0;
+        let bestQuality = 1.0;
+        let bestResult = result;
+        
+        // Binary search for quality that fits in memory
+        for (let iter = 0; iter < 10; iter++) {
+          const testQuality = (low + high) / 2;
+          const testResult = compressImage(this.originalImage, deviceId, testQuality);
+          
+          if (testResult.size <= memoryLimit) {
+            // This fits, try higher quality
+            low = testQuality;
+            bestQuality = testQuality;
+            bestResult = testResult;
+            
+            // If very close to limit, stop
+            if (testResult.size > memoryLimit * 0.95) {
+              break;
+            }
+          } else {
+            // Too big, need lower quality
+            high = testQuality;
+          }
+        }
+        
+        result = bestResult;
+        initialQuality = bestQuality;
+      }
       
       this.devices.push({
         id: deviceId,
         originalCompressed: result.compressed,
         currentCompressed: result.compressed,
-        currentQuality: 1.0,
-        currentSize: result.size
+        currentQuality: initialQuality,
+        currentSize: result.size,
+        memoryLimit: memoryLimit,
+        targetSize: result.size
       });
     }
 
@@ -257,20 +296,24 @@ class ImageCompressionDemo {
       <canvas id="device-canvas-${index}"></canvas>
       <div class="device-controls">
         <div class="size-control">
-          <label>Quality:</label>
+          <label>Target Size:</label>
           <input type="range" 
-                 id="quality-${index}" 
-                 min="0.1" 
-                 max="1.0" 
-                 step="0.05" 
-                 value="${device.currentQuality}">
-          <span id="quality-value-${index}">${(device.currentQuality * 100).toFixed(0)}%</span>
+                 id="size-${index}" 
+                 min="0" 
+                 max="${device.currentSize}" 
+                 step="1024" 
+                 value="${device.currentSize}">
+          <span id="size-value-${index}">${this.formatSize(device.currentSize)}</span>
         </div>
-        <button class="recompress-btn" id="recompress-${index}">Recompress</button>
+        <button class="recompress-btn" id="recompress-${index}">Apply Size</button>
       </div>
       <div class="device-info">
         <span>Size: <span id="device-size-${index}">${this.formatSize(device.currentSize)}</span></span>
-        <span>Compression: <span id="device-ratio-${index}">-</span></span>
+        <span>Quality: <span id="device-quality-${index}">${(device.currentQuality * 100).toFixed(0)}%</span></span>
+        <span>Ratio: <span id="device-ratio-${index}">-</span></span>
+      </div>
+      <div class="device-memory">
+        Memory: ${this.formatSize(device.currentSize)} / ${this.formatSize(device.memoryLimit)}
       </div>
     `;
 
@@ -288,29 +331,39 @@ class ImageCompressionDemo {
     }, 0);
 
     // Add event listeners
-    const qualitySlider = card.querySelector(`#quality-${index}`) as HTMLInputElement;
-    const qualityValue = card.querySelector(`#quality-value-${index}`) as HTMLElement;
+    const sizeSlider = card.querySelector(`#size-${index}`) as HTMLInputElement;
+    const sizeValue = card.querySelector(`#size-value-${index}`) as HTMLElement;
     const recompressBtn = card.querySelector(`#recompress-${index}`) as HTMLButtonElement;
 
-    qualitySlider.addEventListener('input', (e) => {
-      const quality = parseFloat((e.target as HTMLInputElement).value);
-      qualityValue.textContent = `${(quality * 100).toFixed(0)}%`;
+    sizeSlider.addEventListener('input', (e) => {
+      const targetSize = parseInt((e.target as HTMLInputElement).value);
+      sizeValue.textContent = this.formatSize(targetSize);
     });
 
     recompressBtn.addEventListener('click', async () => {
-      const quality = parseFloat(qualitySlider.value);
+      const targetSize = parseInt(sizeSlider.value);
       // Show loading state
       recompressBtn.disabled = true;
-      recompressBtn.textContent = 'Processing...';
+      recompressBtn.textContent = 'Finding quality...';
       
       // Allow UI to update
       await new Promise(resolve => setTimeout(resolve, 10));
       
-      this.recompressDevice(index, quality);
+      // If target is 0, use minimum quality
+      if (targetSize === 0) {
+        await this.recompressDevice(index, 0.1);
+      } else {
+        await this.recompressDeviceToSize(index, targetSize);
+      }
+      
+      // Update slider max to new current size
+      sizeSlider.max = String(device.currentSize);
+      sizeSlider.value = String(device.currentSize);
+      sizeValue.textContent = this.formatSize(device.currentSize);
       
       // Restore button state
       recompressBtn.disabled = false;
-      recompressBtn.textContent = 'Recompress';
+      recompressBtn.textContent = 'Apply Size';
     });
 
     // Update compression ratio
@@ -321,6 +374,101 @@ class ImageCompressionDemo {
     return card;
   }
 
+  private async recompressDeviceToSize(deviceIndex: number, targetSize: number): Promise<void> {
+    const device = this.devices[deviceIndex];
+    
+    // Get current size from original compression
+    const originalDecompressed = decompressImage(device.originalCompressed);
+    const currentSizeAtQ1 = device.originalCompressed.qualityFactor === 1.0 
+      ? device.currentSize 
+      : compressImage(originalDecompressed, device.id, 1.0).size;
+    
+    // Smart first guess: reduce quality proportionally to size reduction needed
+    const sizeReductionRatio = targetSize / currentSizeAtQ1;
+    let testQuality = Math.max(0.1, Math.min(1.0, sizeReductionRatio));
+    
+    console.log(`Target size: ${targetSize}, Current size at Q1: ${currentSizeAtQ1}`);
+    console.log(`Size reduction ratio: ${sizeReductionRatio.toFixed(3)}, First guess quality: ${testQuality.toFixed(3)}`);
+    
+    // Binary search with relaxed parameters
+    let lowQuality = 0.1;
+    let highQuality = 1.0;
+    let bestQuality = testQuality;
+    let bestResult = null;
+    const tolerance = targetSize * 0.1; // 10% tolerance
+    const maxIterations = 5;
+    
+    for (let i = 0; i < maxIterations; i++) {
+      // Test compression at this quality
+      const result = compressImage(originalDecompressed, device.id, testQuality);
+      
+      console.log(`Iteration ${i}: quality=${testQuality.toFixed(3)}, size=${result.size}, target=${targetSize} (±${Math.round(tolerance)})`);
+      
+      // Check if close enough (within 10%)
+      if (Math.abs(result.size - targetSize) <= tolerance) {
+        bestQuality = testQuality;
+        bestResult = result;
+        console.log(`Found acceptable size in ${i + 1} iterations`);
+        break;
+      }
+      
+      // Update search bounds
+      if (result.size > targetSize) {
+        // Need lower quality (more compression)
+        highQuality = testQuality;
+      } else {
+        // Can use higher quality
+        lowQuality = testQuality;
+        // Keep this as best if it's under target
+        bestQuality = testQuality;
+        bestResult = result;
+      }
+      
+      // Next test point
+      if (i === 0 && result.size > targetSize * 1.5) {
+        // First guess was way off, try more aggressive reduction
+        testQuality = testQuality * 0.7;
+      } else {
+        // Standard binary search
+        testQuality = (lowQuality + highQuality) / 2;
+      }
+    }
+    
+    // If we didn't find a result yet, do one final compression at bestQuality
+    if (!bestResult) {
+      bestResult = compressImage(originalDecompressed, device.id, bestQuality);
+      console.log(`Using final quality: ${bestQuality.toFixed(3)}, size: ${bestResult.size}`);
+    }
+    
+    // Apply the best result found
+    device.currentCompressed = bestResult.compressed;
+    device.currentQuality = bestQuality;
+    device.currentSize = bestResult.size;
+    device.targetSize = targetSize;
+    
+    // Update display
+    this.displayImage(`device-canvas-${deviceIndex}`, bestResult.preview);
+    document.getElementById(`device-size-${deviceIndex}`)!.textContent = 
+      this.formatSize(bestResult.size);
+    document.getElementById(`device-quality-${deviceIndex}`)!.textContent = 
+      `${(bestQuality * 100).toFixed(0)}%`;
+    
+    // Update compression ratio
+    const originalSize = this.originalImage!.width * this.originalImage!.height * 3;
+    const ratio = originalSize / device.currentSize;
+    document.getElementById(`device-ratio-${deviceIndex}`)!.textContent = 
+      `${ratio.toFixed(1)}:1`;
+    
+    // Update memory display
+    const memoryEl = document.querySelector(`#device-cards .device-card:nth-child(${deviceIndex + 1}) .device-memory`);
+    if (memoryEl) {
+      memoryEl.textContent = `Memory: ${this.formatSize(device.currentSize)} / ${this.formatSize(device.memoryLimit)}`;
+    }
+    
+    // Update reconstruction
+    this.updateReconstruction();
+  }
+  
   private recompressDevice(deviceIndex: number, quality: number): void {
     const device = this.devices[deviceIndex];
     
@@ -332,17 +480,26 @@ class ImageCompressionDemo {
     device.currentCompressed = result.compressed;
     device.currentQuality = quality;
     device.currentSize = result.size;
+    device.targetSize = result.size;
     
     // Update display
     this.displayImage(`device-canvas-${deviceIndex}`, result.preview);
     document.getElementById(`device-size-${deviceIndex}`)!.textContent = 
       this.formatSize(result.size);
+    document.getElementById(`device-quality-${deviceIndex}`)!.textContent = 
+      `${(quality * 100).toFixed(0)}%`;
     
     // Update compression ratio
     const originalSize = this.originalImage!.width * this.originalImage!.height * 3;
     const ratio = originalSize / device.currentSize;
     document.getElementById(`device-ratio-${deviceIndex}`)!.textContent = 
       `${ratio.toFixed(1)}:1`;
+    
+    // Update memory display
+    const memoryEl = document.querySelector(`#device-cards .device-card:nth-child(${deviceIndex + 1}) .device-memory`);
+    if (memoryEl) {
+      memoryEl.textContent = `Memory: ${this.formatSize(device.currentSize)} / ${this.formatSize(device.memoryLimit)}`;
+    }
     
     // Update reconstruction
     this.updateReconstruction();

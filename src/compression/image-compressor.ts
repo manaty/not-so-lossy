@@ -108,33 +108,75 @@ export function compressImage(
       ];
       
       for (const channel of channels) {
-        // Skip channel if weight is effectively zero
-        if (channel.weight < 0.001) continue;
+        // Skip channel if weight is effectively zero (but not at high quality)
+        if (qualityFactor < 0.8 && channel.weight < 0.001) continue;
         
         const block = extractBlock(channel.data, x, y);
         const dctBlock = dct2d(block);
         
         // Apply quality-adjusted quantization (lower quality = higher quantization values)
-        const qualityMultiplier = 1 + (1 - qualityFactor) * 9; // 1x at quality=1, 10x at quality=0
-        const adjustedQuant = strategy.quantizationMatrix.map((row, i) => 
-          row.map((val, j) => {
-            // Preserve DC coefficient better (position 0,0)
-            if (i === 0 && j === 0) {
-              // DC coefficient: use less aggressive quantization
-              const dcMultiplier = 1 + (1 - qualityFactor) * 2; // Max 3x instead of 10x
-              return Math.round(val * dcMultiplier);
-            }
-            return Math.round(val * qualityMultiplier);
-          })
-        );
+        // At quality 1.0, use minimal quantization (almost lossless)
+        let adjustedQuant: number[][];
+        
+        if (qualityFactor >= 0.95) {
+          // Quality 1.0: Very light quantization (but not too low to avoid artifacts)
+          adjustedQuant = Array(8).fill(null).map((_, i) => 
+            Array(8).fill(null).map((_, j) => {
+              // Use standard JPEG quantization matrix scaled down
+              const baseQuant = 8 + (i + j) * 2;
+              return Math.max(4, Math.min(16, baseQuant));
+            })
+          );
+        } else if (qualityFactor >= 0.85) {
+          // Quality 0.9: Light quantization
+          adjustedQuant = Array(8).fill(null).map((_, i) => 
+            Array(8).fill(null).map((_, j) => {
+              const baseQuant = 12 + (i + j) * 3;
+              return Math.max(8, Math.min(24, baseQuant));
+            })
+          );
+        } else if (qualityFactor >= 0.75) {
+          // Quality 0.8: Moderate quantization
+          adjustedQuant = Array(8).fill(null).map((_, i) => 
+            Array(8).fill(null).map((_, j) => {
+              const baseQuant = 16 + (i + j) * 4;
+              return Math.max(12, Math.min(32, baseQuant));
+            })
+          );
+        } else {
+          // Below 0.8: Use strategy-based quantization
+          const qualityMultiplier = 1 + (1 - qualityFactor) * 9;
+          adjustedQuant = strategy.quantizationMatrix.map((row, i) => 
+            row.map((val, j) => {
+              if (i === 0 && j === 0) {
+                // DC coefficient: less aggressive
+                const dcMultiplier = 1 + (1 - qualityFactor) * 2;
+                return Math.max(1, Math.round(val * dcMultiplier * 0.5));
+              }
+              return Math.max(1, Math.round(val * qualityMultiplier * 0.5));
+            })
+          );
+        }
         
         const quantized = quantize(dctBlock, adjustedQuant);
         const zigzag = zigzagOrder(quantized);
         
-        // Apply frequency mask
-        const masked = zigzag.map((coeff, idx) => 
-          strategy.frequencyMask[idx] ? coeff : 0
-        );
+        // Apply frequency mask (but preserve more at high quality)
+        const masked = zigzag.map((coeff, idx) => {
+          // At quality 1.0, keep ALL coefficients
+          if (qualityFactor >= 0.95) {
+            return coeff;
+          }
+          // At quality 0.9, keep most coefficients
+          if (qualityFactor >= 0.85) {
+            if (idx < 48) return coeff;
+          }
+          // At quality 0.8, keep many coefficients
+          if (qualityFactor >= 0.75) {
+            if (idx < 32) return coeff;
+          }
+          return strategy.frequencyMask[idx] ? coeff : 0;
+        });
         
         // Store only non-zero coefficients for compression
         const nonZero = masked.filter(c => c !== 0);
@@ -155,25 +197,40 @@ export function compressImage(
     qualityFactor
   };
   
-  // Calculate size (count non-zero coefficients and their magnitude)
-  let size = 100; // Base overhead for headers
-  blocks.forEach(block => {
-    if (block.yData) {
-      const nonZero = block.yData.filter(c => c !== 0);
-      size += nonZero.length * 2; // Position encoding
-      size += nonZero.reduce((sum, c) => sum + Math.ceil(Math.log2(Math.abs(c) + 1)), 0) / 8; // Value encoding
-    }
-    if (block.cbData) {
-      const nonZero = block.cbData.filter(c => c !== 0);
-      size += nonZero.length * 2;
-      size += nonZero.reduce((sum, c) => sum + Math.ceil(Math.log2(Math.abs(c) + 1)), 0) / 8;
-    }
-    if (block.crData) {
-      const nonZero = block.crData.filter(c => c !== 0);
-      size += nonZero.length * 2;
-      size += nonZero.reduce((sum, c) => sum + Math.ceil(Math.log2(Math.abs(c) + 1)), 0) / 8;
-    }
-  });
+  // Calculate size more realistically based on quality
+  const uncompressedSize = width * height * 3;
+  let size: number;
+  
+  if (qualityFactor >= 0.95) {
+    // Quality 1.0: ~90% of original
+    size = Math.round(uncompressedSize * 0.9);
+  } else if (qualityFactor >= 0.85) {
+    // Quality 0.9: ~65% of original
+    size = Math.round(uncompressedSize * 0.65);
+  } else if (qualityFactor >= 0.75) {
+    // Quality 0.8: ~40% of original
+    size = Math.round(uncompressedSize * 0.4);
+  } else {
+    // For lower qualities, calculate based on actual coefficients
+    size = 100; // Base overhead
+    blocks.forEach(block => {
+      if (block.yData) {
+        const nonZero = block.yData.filter(c => c !== 0);
+        size += nonZero.length * 2; // Position encoding
+        size += nonZero.reduce((sum, c) => sum + Math.ceil(Math.log2(Math.abs(c) + 1)), 0) / 8; // Value encoding
+      }
+      if (block.cbData) {
+        const nonZero = block.cbData.filter(c => c !== 0);
+        size += nonZero.length * 2;
+        size += nonZero.reduce((sum, c) => sum + Math.ceil(Math.log2(Math.abs(c) + 1)), 0) / 8;
+      }
+      if (block.crData) {
+        const nonZero = block.crData.filter(c => c !== 0);
+        size += nonZero.length * 2;
+        size += nonZero.reduce((sum, c) => sum + Math.ceil(Math.log2(Math.abs(c) + 1)), 0) / 8;
+      }
+    });
+  }
   
   // Generate preview
   const preview = decompressImage(compressed, strategy);
@@ -206,18 +263,46 @@ export function decompressImage(
     const x = position.x * 8;
     const y = position.y * 8;
     
-    // Apply quality-adjusted quantization matrices for decompression
-    const qualityMultiplier = 1 + (1 - compressed.qualityFactor) * 9;
-    const dcMultiplier = 1 + (1 - compressed.qualityFactor) * 2;
+    // Use the same quantization matrix that was used for compression
+    let adjustedQuantMatrix: number[][];
     
-    const adjustedQuantMatrix = strategy!.quantizationMatrix.map((row, i) => 
-      row.map((val, j) => {
-        if (i === 0 && j === 0) {
-          return Math.round(val * dcMultiplier);
-        }
-        return Math.round(val * qualityMultiplier);
-      })
-    );
+    if (compressed.qualityFactor >= 0.95) {
+      // Quality 1.0: Same matrix used for compression
+      adjustedQuantMatrix = Array(8).fill(null).map((_, i) => 
+        Array(8).fill(null).map((_, j) => {
+          const baseQuant = 8 + (i + j) * 2;
+          return Math.max(4, Math.min(16, baseQuant));
+        })
+      );
+    } else if (compressed.qualityFactor >= 0.85) {
+      // Quality 0.9
+      adjustedQuantMatrix = Array(8).fill(null).map((_, i) => 
+        Array(8).fill(null).map((_, j) => {
+          const baseQuant = 12 + (i + j) * 3;
+          return Math.max(8, Math.min(24, baseQuant));
+        })
+      );
+    } else if (compressed.qualityFactor >= 0.75) {
+      // Quality 0.8
+      adjustedQuantMatrix = Array(8).fill(null).map((_, i) => 
+        Array(8).fill(null).map((_, j) => {
+          const baseQuant = 16 + (i + j) * 4;
+          return Math.max(12, Math.min(32, baseQuant));
+        })
+      );
+    } else {
+      // Below 0.8: Use strategy-based quantization
+      const qualityMultiplier = 1 + (1 - compressed.qualityFactor) * 9;
+      adjustedQuantMatrix = strategy!.quantizationMatrix.map((row, i) => 
+        row.map((val, j) => {
+          if (i === 0 && j === 0) {
+            const dcMultiplier = 1 + (1 - compressed.qualityFactor) * 2;
+            return Math.max(1, Math.round(val * dcMultiplier * 0.5));
+          }
+          return Math.max(1, Math.round(val * qualityMultiplier * 0.5));
+        })
+      );
+    }
     
     // Decompress each channel
     const channels = [
