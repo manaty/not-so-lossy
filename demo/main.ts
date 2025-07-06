@@ -286,7 +286,7 @@ class ModularImageCompressionDemo {
       await new Promise(resolve => setTimeout(resolve, 10));
       
       const deviceId = `DEVICE-${String(i).padStart(3, '0')}`;
-      const memoryLimit = 10 * 1024 * 1024; // 10MB
+      const memoryLimit = 100 * 1024 * 1024; // 100MB
       
       const options: CodecOptions = {
         quality: 1.0,

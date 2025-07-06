@@ -46,7 +46,8 @@ export function compressImage(
   imageData: ImageData, 
   deviceId: string, 
   compressionLevel: number,
-  previousCompressed?: QDCTCompressedImage
+  previousCompressed?: QDCTCompressedImage,
+  skipPreview: boolean = false
 ): CompressionResult {
   const { width, height, data } = imageData;
   const blocks: QDCTCompressedBlock[] = [];
@@ -109,7 +110,17 @@ export function compressImage(
   const size = calculateCompressedSize(compressed);
   
   // Generate preview
-  const preview = decompressImage(compressed);
+  let preview: ImageData;
+  if (skipPreview || compressed.blocks.length > 50000) {
+    // Skip preview for large images or when requested
+    preview = {
+      data: new Uint8ClampedArray(4),
+      width: 1,
+      height: 1
+    };
+  } else {
+    preview = decompressImage(compressed);
+  }
   
   return { compressed, size, preview };
 }
@@ -205,7 +216,9 @@ export function recompressToLevel(
   const decompressed = decompressImage(compressed);
   
   // Recompress with new level, passing the previous compressed data
-  return compressImage(decompressed, compressed.deviceId, newLevel, compressed);
+  // Skip preview for incremental compression of large images
+  const skipPreview = compressed.blocks.length > 50000;
+  return compressImage(decompressed, compressed.deviceId, newLevel, compressed, skipPreview);
 }
 
 /**
@@ -226,7 +239,9 @@ export async function recompressToLevelAsync(
     : decompressImage(compressed);
   
   // Recompress with new level, passing the previous compressed data
-  return compressImage(decompressed, compressed.deviceId, newLevel, compressed);
+  // Skip preview for incremental compression of large images
+  const skipPreview = compressed.blocks.length > 50000;
+  return compressImage(decompressed, compressed.deviceId, newLevel, compressed, skipPreview);
 }
 
 /**
