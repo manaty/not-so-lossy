@@ -5,7 +5,7 @@ import {
   inverseZigzag,
   quantize,
   dequantize
-} from '../../../src/utils/dct';
+} from '../../../src/codecs/dct/dct-utils';
 
 describe('DCT Utilities', () => {
   describe('dct2d', () => {

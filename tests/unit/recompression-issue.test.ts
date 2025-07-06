@@ -1,5 +1,5 @@
-import { compressImage, decompressImage } from '../../src/compression/image-compressor';
-import { ImageData } from '../../src/compression/image-compressor';
+import { compressImage, decompressImage } from '../../src/codecs/dct/dct-compressor';
+import { ImageData } from '../../src/codecs/dct/dct-compressor';
 
 describe('Recompression Issue Investigation', () => {
   it('should trace why 255 becomes 218', () => {

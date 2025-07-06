@@ -1,5 +1,5 @@
-import { compressImage, decompressImage } from '../../src/compression/image-compressor';
-import { ImageData } from '../../src/compression/image-compressor';
+import { compressImage, decompressImage } from '../../src/codecs/dct/dct-compressor';
+import { ImageData } from '../../src/codecs/dct/dct-compressor';
 
 describe('Optimized Size Search Tests', () => {
   it('should find size with smart first guess', () => {

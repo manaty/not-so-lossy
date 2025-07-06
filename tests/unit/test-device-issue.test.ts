@@ -1,6 +1,6 @@
-import { compressImage, decompressImage } from '../../src/compression/image-compressor';
-import { ImageData } from '../../src/compression/image-compressor';
-import { DeterministicStrategyGenerator } from '../../src/core/deterministic-strategy';
+import { compressImage, decompressImage } from '../../src/codecs/dct/dct-compressor';
+import { ImageData } from '../../src/codecs/dct/dct-compressor';
+import { DeterministicStrategyGenerator } from '../../src/codecs/dct/dct-strategy';
 
 describe('TEST-DEVICE Issue Investigation', () => {
   it('should compare TEST-DEVICE vs DEVICE-001 quantization', () => {

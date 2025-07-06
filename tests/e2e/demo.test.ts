@@ -40,6 +40,7 @@ describe('Demo E2E Tests', () => {
 
   describe('Initial Page Load', () => {
     it('should have all required elements', () => {
+      expect(document.getElementById('codec-selector')).toBeTruthy();
       expect(document.getElementById('device-count')).toBeTruthy();
       expect(document.getElementById('image-upload')).toBeTruthy();
       expect(document.getElementById('process-btn')).toBeTruthy();
@@ -64,7 +65,7 @@ describe('Demo E2E Tests', () => {
 
     it('should have sample images gallery', () => {
       const sampleImages = document.querySelectorAll('.sample-image');
-      expect(sampleImages.length).toBe(10);
+      expect(sampleImages.length).toBe(5);
       
       // Check each sample image has correct structure
       sampleImages.forEach(sample => {
@@ -92,7 +93,7 @@ describe('Demo E2E Tests', () => {
       const sampleImages = document.querySelectorAll('.sample-image img');
       sampleImages.forEach(img => {
         const src = img.getAttribute('src');
-        expect(src).toMatch(/^\/images\/(white|gradient|checkerboard|colorbars|circles|mixed)\.png$|^\/images\/im[1-5]\.jpg$/);
+        expect(src).toMatch(/^\/images\/im[1-5]\.jpg$/);
       });
     });
   });
@@ -154,7 +155,7 @@ describe('Demo E2E Tests', () => {
 
     it('should have responsive CSS classes', () => {
       const stylesheet = document.querySelector('link[rel="stylesheet"]');
-      expect(stylesheet?.getAttribute('href')).toBe('./style.css');
+      expect(stylesheet?.getAttribute('href')).toBe('style.css');
     });
   });
 });

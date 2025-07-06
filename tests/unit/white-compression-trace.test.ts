@@ -1,6 +1,6 @@
-import { compressImage, decompressImage } from '../../src/compression/image-compressor';
-import { ImageData } from '../../src/compression/image-compressor';
-import { DeterministicStrategyGenerator } from '../../src/core/deterministic-strategy';
+import { compressImage, decompressImage } from '../../src/codecs/dct/dct-compressor';
+import { ImageData } from '../../src/codecs/dct/dct-compressor';
+import { DeterministicStrategyGenerator } from '../../src/codecs/dct/dct-strategy';
 
 describe('White Image Compression Trace', () => {
   it('should trace white image compression', () => {

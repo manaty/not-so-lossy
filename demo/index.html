@@ -3,143 +3,168 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Not-So-Lossy: Distributed Image Compression Demo</title>
-  <link rel="stylesheet" href="./style.css">
+  <title>Modular Distributed Compression Demo</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>Not-So-Lossy</h1>
-      <p>Distributed Lossy Image Compression Demo</p>
+      <h1>Modular Distributed Lossy Image Compression</h1>
+      <p>Experiment with different compression algorithms across multiple devices</p>
     </header>
 
-    <main>
-      <!-- Configuration Section -->
-      <section class="config-section">
-        <h2>Configuration</h2>
-        <div class="config-controls">
-          <div class="control-group">
-            <label for="device-count">Number of Devices:</label>
-            <input type="number" id="device-count" min="1" max="10" value="3">
-          </div>
-          <div class="control-group">
-            <label for="image-upload">Upload Image:</label>
-            <input type="file" id="image-upload" accept="image/*">
-          </div>
-          <button id="process-btn" disabled>Process Image</button>
+    <!-- Configuration Section -->
+    <section class="config-section">
+      <h2>Configuration</h2>
+      <div class="config-controls">
+        <div class="control-group">
+          <label for="codec-selector">Compression Algorithm:</label>
+          <select id="codec-selector"></select>
         </div>
-        
-        <!-- Progress Indicator -->
-        <div id="progress-container" class="progress-container hidden">
-          <div class="progress-spinner"></div>
-          <div class="progress-text">Processing image across devices...</div>
-          <div class="progress-bar">
-            <div class="progress-fill"></div>
-          </div>
-          <div class="progress-details">
-            <span id="progress-current">0</span> / <span id="progress-total">0</span> devices processed
-          </div>
+        <div class="control-group">
+          <label for="device-count">Number of Devices:</label>
+          <input type="number" id="device-count" min="1" max="10" value="3">
         </div>
-        
-        <!-- Sample Images -->
-        <div class="sample-images">
-          <h3>Or choose a test image:</h3>
-          <div class="sample-gallery">
-            <div class="sample-image" data-src="/images/white.png" title="Pure white image">
-              <img src="/images/white.png" alt="White">
-              <span>White</span>
-            </div>
-            <div class="sample-image" data-src="/images/checkerboard.png" title="High frequency pattern">
-              <img src="/images/checkerboard.png" alt="Checkerboard">
-              <span>Checkerboard</span>
-            </div>
-            <div class="sample-image" data-src="/images/colorbars.png" title="Color test pattern">
-              <img src="/images/colorbars.png" alt="Color Bars">
-              <span>Color Bars</span>
-            </div>
-            <div class="sample-image" data-src="/images/circles.png" title="Radial frequency pattern">
-              <img src="/images/circles.png" alt="Circles">
-              <span>Circles</span>
-            </div>
-            <div class="sample-image" data-src="/images/mixed.png" title="Mixed frequency content">
-              <img src="/images/mixed.png" alt="Mixed">
-              <span>Mixed</span>
-            </div>
-            <div class="sample-image" data-src="/images/im1.jpg" title="Sample image 1">
-              <img src="/images/im1.jpg" alt="Image 1">
-              <span>Image 1</span>
-            </div>
-            <div class="sample-image" data-src="/images/im2.jpg" title="Sample image 2">
-              <img src="/images/im2.jpg" alt="Image 2">
-              <span>Image 2</span>
-            </div>
-            <div class="sample-image" data-src="/images/im3.jpg" title="Sample image 3">
-              <img src="/images/im3.jpg" alt="Image 3">
-              <span>Image 3</span>
-            </div>
-            <div class="sample-image" data-src="/images/im4.jpg" title="Sample image 4">
-              <img src="/images/im4.jpg" alt="Image 4">
-              <span>Image 4</span>
-            </div>
-            <div class="sample-image" data-src="/images/im5.jpg" title="Sample image 5">
-              <img src="/images/im5.jpg" alt="Image 5">
-              <span>Image 5</span>
-            </div>
-          </div>
+        <div class="control-group">
+          <label for="image-upload">Upload Image:</label>
+          <input type="file" id="image-upload" accept="image/*">
         </div>
-      </section>
+        <div class="control-group">
+          <label>
+            <input type="checkbox" id="full-resolution" checked>
+            Use full resolution (no size limit)
+          </label>
+        </div>
+        <div class="control-group" id="webgpu-option" style="display: none;">
+          <label>
+            <input type="checkbox" id="use-webgpu">
+            Use WebGPU acceleration
+          </label>
+        </div>
+        <button id="process-btn" disabled>Process Image</button>
+      </div>
 
-      <!-- Results Section -->
-      <section id="results-section" class="results-section hidden">
-        <h2>Results</h2>
-        
-        <!-- Original and Reconstructed Images -->
-        <div class="image-comparison">
-          <div class="image-container">
-            <h3>Original Image</h3>
-            <canvas id="original-canvas"></canvas>
-            <div class="image-info">
-              <span>Size: <span id="original-size">-</span></span>
-            </div>
+      <!-- Sample Images -->
+      <div class="sample-images">
+        <h3>Or select a sample image:</h3>
+        <div class="sample-gallery">
+          <div class="sample-image" data-src="/images/im1.jpg" title="Sample image 1">
+            <img src="/images/im1.jpg" alt="Image 1">
+            <span>Image 1</span>
           </div>
-          
-          <div class="image-container">
-            <h3>Reconstructed Image</h3>
-            <canvas id="reconstructed-canvas"></canvas>
-            <div class="image-info">
-              <span>PSNR: <span id="psnr-value">-</span> dB</span>
-              <span>Total Size: <span id="total-size">-</span></span>
-            </div>
+          <div class="sample-image" data-src="/images/im2.jpg" title="Sample image 2">
+            <img src="/images/im2.jpg" alt="Image 2">
+            <span>Image 2</span>
           </div>
-        </div>
-
-        <!-- Device Cards -->
-        <div class="devices-section">
-          <h3>Device Compressions</h3>
-          <div id="device-cards" class="device-cards">
-            <!-- Device cards will be dynamically inserted here -->
+          <div class="sample-image" data-src="/images/im3.jpg" title="Sample image 3">
+            <img src="/images/im3.jpg" alt="Image 3">
+            <span>Image 3</span>
+          </div>
+          <div class="sample-image" data-src="/images/im4.jpg" title="Sample image 4">
+            <img src="/images/im4.jpg" alt="Image 4">
+            <span>Image 4</span>
+          </div>
+          <div class="sample-image" data-src="/images/im5.jpg" title="Sample image 5">
+            <img src="/images/im5.jpg" alt="Image 5">
+            <span>Image 5</span>
           </div>
         </div>
-      </section>
+      </div>
+    </section>
 
-      <!-- Info Section -->
-      <section class="info-section">
-        <h2>How it works</h2>
-        <p>
-          Each device uses its unique ID to deterministically compress the image differently:
-        </p>
-        <ul>
-          <li>Different frequency coefficients are preserved by each device</li>
-          <li>Different quantization matrices are applied</li>
-          <li>The reconstruction combines all preserved information</li>
-          <li>More devices = better reconstruction quality</li>
-        </ul>
-      </section>
-    </main>
+    <!-- Progress Indicator -->
+    <div id="progress-container" class="progress-container hidden">
+      <div class="progress-spinner"></div>
+      <div class="progress-text">Processing image across devices...</div>
+      <div class="progress-bar">
+        <div class="progress-fill"></div>
+      </div>
+      <div class="progress-details">
+        <span id="progress-current">0</span> / <span id="progress-total">0</span> devices processed
+      </div>
+    </div>
+
+    <!-- Results Section -->
+    <section id="results-section" class="results-section hidden">
+      <h2>Results</h2>
+      
+      <!-- Codec Info -->
+      <div id="codec-info" class="codec-info"></div>
+      
+      <!-- Original and Reconstructed Images -->
+      <div class="image-comparison">
+        <div class="image-container">
+          <h3>Original Image</h3>
+          <canvas id="original-canvas"></canvas>
+          <div class="image-info">
+            <span>Size: <span id="original-size">-</span></span>
+          </div>
+        </div>
+        <div class="image-container">
+          <h3>Reconstructed Image</h3>
+          <canvas id="reconstructed-canvas"></canvas>
+          <div class="image-info">
+            <span>Total Size: <span id="total-size">-</span></span>
+            <span>PSNR: <span id="psnr-value">-</span> dB</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Device Cards -->
+      <h3>Individual Device Compressions</h3>
+      <div id="device-cards" class="device-cards"></div>
+    </section>
+
+    <!-- Information Section -->
+    <section class="info-section">
+      <h2>About Modular Compression</h2>
+      <p>This demo allows you to experiment with different compression algorithms:</p>
+      <ul>
+        <li><strong>DCT</strong>: Discrete Cosine Transform based compression (JPEG-like)</li>
+        <li><strong>Wavelet</strong>: Haar wavelet transform compression</li>
+        <li><strong>RLE</strong>: Run-Length Encoding compression</li>
+      </ul>
+      <p>Each algorithm uses the device ID to create unique compression strategies, enabling distributed compression with complementary information preservation.</p>
+    </section>
 
     <footer>
-      <p>Research project on distributed lossy compression</p>
+      <p>Modular Distributed Compression Research Demo</p>
+      <p>
+        <a href="explore.html">Explore Quantization Matrices →</a> | 
+        <a href="viewer.html">View NSL Files →</a>
+      </p>
     </footer>
+  </div>
+
+  <!-- Fullscreen Image Viewer -->
+  <div id="fullscreen-viewer" class="fullscreen-viewer hidden">
+    <div class="viewer-header">
+      <h3 id="viewer-title">Image Comparison</h3>
+      <button id="close-viewer" class="close-button">&times;</button>
+    </div>
+    <div class="viewer-content">
+      <div class="comparison-container">
+        <canvas id="viewer-original" class="comparison-image"></canvas>
+        <div class="comparison-overlay">
+          <canvas id="viewer-compressed" class="comparison-image"></canvas>
+        </div>
+        <input type="range" id="comparison-slider" class="comparison-slider" min="0" max="100" value="50">
+      </div>
+      <div class="viewer-info">
+        <div class="info-item">
+          <span class="info-label">Original</span>
+          <span id="viewer-original-info" class="info-value">-</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Compressed</span>
+          <span id="viewer-compressed-info" class="info-value">-</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">PSNR</span>
+          <span id="viewer-psnr" class="info-value">-</span>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script type="module" src="./main.ts"></script>

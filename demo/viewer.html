@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NSL File Viewer - Multi-Device Reconstruction</title>
+  <link rel="stylesheet" href="viewer-style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>NSL File Viewer</h1>
+      <p>Load multiple device images and view their reconstruction</p>
+    </header>
+
+    <!-- File Selection Section -->
+    <section class="file-section">
+      <h2>Select NSL Files</h2>
+      <div class="file-controls">
+        <input type="file" id="file-input" accept=".nsl" multiple>
+        <button id="load-files-btn">Load Selected Files</button>
+        <button id="clear-btn">Clear All</button>
+      </div>
+      
+      <!-- File List -->
+      <div id="file-list" class="file-list hidden">
+        <h3>Selected Files:</h3>
+        <ul id="file-items"></ul>
+      </div>
+    </section>
+
+    <!-- Results Section -->
+    <section id="results-section" class="results-section hidden">
+      <h2>Device Images and Reconstruction</h2>
+      
+      <!-- Status Messages -->
+      <div id="status-message" class="status-message"></div>
+      
+      <!-- Reconstructed Image -->
+      <div id="reconstructed-container" class="reconstructed-container">
+        <h3>Reconstructed Image</h3>
+        <div class="image-container">
+          <canvas id="reconstructed-canvas"></canvas>
+          <div class="image-info">
+            <div>Dimensions: <span id="image-dimensions">-</span></div>
+            <div>Devices: <span id="device-count">-</span></div>
+            <div>PSNR: <span id="psnr-value">-</span> dB</div>
+            <div>Total Size: <span id="total-size">-</span></div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Individual Device Images -->
+      <div class="devices-grid">
+        <h3>Individual Device Images</h3>
+        <div id="device-cards" class="device-cards"></div>
+      </div>
+    </section>
+
+    <!-- Info Section -->
+    <section class="info-section">
+      <h2>How to Use</h2>
+      <ol>
+        <li>Select multiple .nsl files exported from the main demo</li>
+        <li>Click "Load Selected Files" to process them</li>
+        <li>All files must have the same image dimensions</li>
+        <li>The reconstructed image combines information from all devices</li>
+        <li>Individual device images show what each device contributes</li>
+      </ol>
+    </section>
+
+    <footer>
+      <p>NSL Multi-Device Viewer</p>
+      <p><a href="index.html">← Back to Main Demo</a> | <a href="explore.html">Explore Quantization →</a></p>
+    </footer>
+  </div>
+
+  <!-- Fullscreen Image Viewer -->
+  <div id="fullscreen-viewer" class="fullscreen-viewer hidden">
+    <div class="fullscreen-header">
+      <h3 id="fullscreen-title">Image</h3>
+      <div class="fullscreen-controls">
+        <span id="fullscreen-info"></span>
+        <button id="close-fullscreen" class="close-button">&times;</button>
+      </div>
+    </div>
+    <div class="fullscreen-content">
+      <canvas id="fullscreen-canvas"></canvas>
+    </div>
+  </div>
+
+  <script type="module" src="./viewer.ts"></script>
+</body>
+</html>

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quantization Matrix Explorer</title>
+  <link rel="stylesheet" href="explore-style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Quantization Matrix Explorer</h1>
+      <p>Explore how quantization matrices change with compression levels</p>
+    </header>
+
+    <!-- Controls Section -->
+    <section class="controls-section">
+      <h2>Configuration</h2>
+      <div class="controls">
+        <div class="control-group">
+          <label for="device-selector">Device:</label>
+          <select id="device-selector">
+            <option value="DEVICE-000">DEVICE-000</option>
+            <option value="DEVICE-001">DEVICE-001</option>
+            <option value="DEVICE-002">DEVICE-002</option>
+            <option value="DEVICE-003">DEVICE-003</option>
+            <option value="DEVICE-004">DEVICE-004</option>
+            <option value="DEVICE-005">DEVICE-005</option>
+          </select>
+        </div>
+        
+        <div class="control-group">
+          <label for="image-upload">Upload Image:</label>
+          <input type="file" id="image-upload" accept="image/*">
+        </div>
+      </div>
+
+      <!-- Sample Images -->
+      <div class="sample-images">
+        <h3>Or select a sample image:</h3>
+        <div class="sample-gallery">
+          <div class="sample-image" data-src="/images/im1.jpg" title="Sample image 1">
+            <img src="/images/im1.jpg" alt="Image 1">
+            <span>Image 1</span>
+          </div>
+          <div class="sample-image" data-src="/images/im2.jpg" title="Sample image 2">
+            <img src="/images/im2.jpg" alt="Image 2">
+            <span>Image 2</span>
+          </div>
+          <div class="sample-image" data-src="/images/im3.jpg" title="Sample image 3">
+            <img src="/images/im3.jpg" alt="Image 3">
+            <span>Image 3</span>
+          </div>
+          <div class="sample-image" data-src="/images/im4.jpg" title="Sample image 4">
+            <img src="/images/im4.jpg" alt="Image 4">
+            <span>Image 4</span>
+          </div>
+          <div class="sample-image" data-src="/images/im5.jpg" title="Sample image 5">
+            <img src="/images/im5.jpg" alt="Image 5">
+            <span>Image 5</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main Explorer Section -->
+    <section id="explorer-section" class="explorer-section hidden">
+      <h2>Quantization Explorer</h2>
+      
+      <!-- Level Control -->
+      <div class="level-control">
+        <label for="level-slider">Compression Level:</label>
+        <input type="range" id="level-slider" min="0" max="1000" value="0">
+        <span id="level-value">0</span>
+        <button id="regenerate-btn">Regenerate Image</button>
+        <button id="export-btn">Export .nsl</button>
+      </div>
+
+      <!-- Main Content -->
+      <div class="explorer-content">
+        <!-- Quantization Matrix Display -->
+        <div class="matrix-section">
+          <h3>Quantization Matrix</h3>
+          <div id="matrix-display" class="matrix-display"></div>
+          <div class="matrix-stats">
+            <div>Min: <span id="matrix-min">-</span></div>
+            <div>Max: <span id="matrix-max">-</span></div>
+            <div>Avg: <span id="matrix-avg">-</span></div>
+          </div>
+        </div>
+
+        <!-- Image Display -->
+        <div class="image-section">
+          <h3>Compressed Image</h3>
+          <div class="image-container">
+            <canvas id="original-canvas" class="hidden"></canvas>
+            <canvas id="compressed-canvas"></canvas>
+          </div>
+          <div class="image-info">
+            <div>Size: <span id="compressed-size">-</span></div>
+            <div>PSNR: <span id="psnr-value">-</span> dB</div>
+            <div>Compression Ratio: <span id="compression-ratio">-</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Comparison Section -->
+      <div class="comparison-section">
+        <div class="comparison-controls">
+          <button id="show-original-btn">Show Original</button>
+          <button id="show-compressed-btn" class="active">Show Compressed</button>
+          <button id="show-difference-btn">Show Difference</button>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <p>QDCT Quantization Matrix Explorer</p>
+      <p>
+        <a href="index.html">← Back to Main Demo</a> | 
+        <a href="viewer.html">View NSL Files →</a>
+      </p>
+    </footer>
+  </div>
+
+  <script type="module" src="./explore.ts"></script>
+</body>
+</html>

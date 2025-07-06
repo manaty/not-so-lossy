@@ -1,5 +1,5 @@
-import { compressImage, decompressImage, reconstructFromMultiple, calculatePSNR } from '../../src/compression/image-compressor';
-import { ImageData } from '../../src/compression/image-compressor';
+import { compressImage, decompressImage, reconstructFromMultiple, calculatePSNR } from '../../src/codecs/dct/dct-compressor';
+import { ImageData } from '../../src/codecs/dct/dct-compressor';
 
 describe('Reconstruction Update Tests', () => {
   it('should update reconstruction when device quality changes', () => {

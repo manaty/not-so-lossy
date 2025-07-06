@@ -3,6 +3,7 @@
     "target": "ES2020",
     "module": "commonjs",
     "lib": ["ES2020", "DOM"],
+    "types": ["@webgpu/types"],
     "outDir": "./dist",
     "rootDir": "./src",
     "strict": true,
@@ -16,5 +17,5 @@
     "moduleResolution": "node"
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "demo"]
+  "exclude": ["node_modules", "dist", "demo", "**/*.test.ts", "**/*.spec.ts"]
 }

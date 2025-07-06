@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { compressImage, reconstructFromMultiple, calculatePSNR } from '../../src/compression/image-compressor';
+import { compressImage, reconstructFromMultiple, calculatePSNR } from '../../src/codecs/dct/dct-compressor';
 import { generateTestImage } from '../fixtures/test-data';
 
 describe('Compression Workflow E2E Tests', () => {

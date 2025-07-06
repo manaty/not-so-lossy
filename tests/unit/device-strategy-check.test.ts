@@ -1,4 +1,4 @@
-import { DeterministicStrategyGenerator } from '../../src/core/deterministic-strategy';
+import { DeterministicStrategyGenerator } from '../../src/codecs/dct/dct-strategy';
 
 describe('Device Strategy Check', () => {
   it('should examine device strategies', () => {

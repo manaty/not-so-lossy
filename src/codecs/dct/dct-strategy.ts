@@ -1,5 +1,5 @@
 import * as CryptoJS from 'crypto-js';
-import { DeviceStrategy } from './types';
+import { DCTDeviceStrategy } from './dct-types';
 
 /**
  * Generates a deterministic compression strategy from a device ID
@@ -8,7 +8,7 @@ export class DeterministicStrategyGenerator {
   /**
    * Generate compression strategy from device ID
    */
-  static generateStrategy(deviceId: string): DeviceStrategy {
+  static generateStrategy(deviceId: string): DCTDeviceStrategy {
     // Create deterministic hash from device ID
     const hash = CryptoJS.SHA256(deviceId).toString();
     const hashBytes = this.hexToBytes(hash);

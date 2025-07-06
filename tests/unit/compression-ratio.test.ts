@@ -1,5 +1,5 @@
-import { compressImage } from '../../src/compression/image-compressor';
-import { ImageData } from '../../src/compression/image-compressor';
+import { compressImage } from '../../src/codecs/dct/dct-compressor';
+import { ImageData } from '../../src/codecs/dct/dct-compressor';
 
 describe('Compression Ratio Tests', () => {
   it('should check compression at quality 1.0', () => {

@@ -88,6 +88,18 @@ section h2 {
   background: white;
 }
 
+.control-group input[type="checkbox"] {
+  margin-right: 8px;
+  cursor: pointer;
+}
+
+.control-group label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
 #process-btn {
   padding: 10px 20px;
   background: #3498db;
@@ -186,6 +198,9 @@ section h2 {
   border: 1px solid #ddd;
   border-radius: 4px;
   background: #f8f9fa;
+  image-rendering: auto;
+  image-rendering: smooth;
+  image-rendering: high-quality;
 }
 
 .image-info {
@@ -232,17 +247,39 @@ section h2 {
   border: 1px solid #ddd;
   border-radius: 4px;
   background: white;
-  image-rendering: pixelated;
-  image-rendering: -moz-crisp-edges;
-  image-rendering: crisp-edges;
   max-width: 100%;
   height: auto;
+  image-rendering: auto;
+  image-rendering: smooth;
+  image-rendering: high-quality;
 }
 
 .device-controls {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.device-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 5px;
+}
+
+.export-btn {
+  width: 100%;
+  padding: 6px 12px;
+  background: #95a5a6;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.export-btn:hover {
+  background: #7f8c8d;
 }
 
 .size-control {
@@ -273,12 +310,14 @@ section h2 {
   font-size: 12px;
   color: #7f8c8d;
   margin-top: 5px;
-  gap: 10px;
+  gap: 5px;
+  flex-wrap: wrap;
 }
 
 .device-info span {
-  flex: 1;
+  flex: 1 1 45%;
   text-align: center;
+  min-width: 0;
 }
 
 .device-memory {
@@ -369,12 +408,215 @@ section h2 {
   color: #666;
 }
 
+/* Codec Info */
+.codec-info {
+  text-align: center;
+  font-size: 16px;
+  color: #3498db;
+  margin-bottom: 20px;
+  font-weight: 500;
+}
+
+/* Codec Selector */
+#codec-selector {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 16px;
+  background: white;
+  cursor: pointer;
+  min-width: 120px;
+}
+
+#codec-selector:hover {
+  border-color: #3498db;
+}
+
 /* Footer */
 footer {
   text-align: center;
   padding: 20px;
   color: #7f8c8d;
   font-size: 14px;
+}
+
+footer a {
+  color: #3498db;
+  text-decoration: none;
+  margin-top: 10px;
+  display: inline-block;
+}
+
+footer a:hover {
+  text-decoration: underline;
+}
+
+/* Fullscreen Image Viewer */
+.fullscreen-viewer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.95);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+}
+
+.fullscreen-viewer.hidden {
+  display: none;
+}
+
+.viewer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  color: white;
+}
+
+.viewer-header h3 {
+  margin: 0;
+  font-size: 1.5em;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 2em;
+  cursor: pointer;
+  padding: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s;
+}
+
+.close-button:hover {
+  opacity: 0.7;
+}
+
+.viewer-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  overflow: auto; /* Changed from hidden to auto for scrolling */
+}
+
+.comparison-container {
+  position: relative;
+  /* Remove size constraints for full resolution display */
+  margin: 0 auto;
+}
+
+.comparison-image {
+  display: block;
+  /* Remove size constraints to show at full resolution */
+  width: auto;
+  height: auto;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+.comparison-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: 100%;
+  overflow: hidden;
+  border-right: 2px solid #3498db;
+}
+
+.comparison-overlay canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  /* Ensure same rendering as original */
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+.comparison-slider {
+  position: absolute;
+  bottom: -40px;
+  left: 0;
+  width: 100%;
+  height: 40px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  outline: none;
+  cursor: ew-resize;
+  z-index: 10; /* Ensure slider is above the images */
+}
+
+.comparison-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 40px;
+  background: #3498db;
+  cursor: ew-resize;
+  border-radius: 3px;
+}
+
+.comparison-slider::-moz-range-thumb {
+  width: 20px;
+  height: 40px;
+  background: #3498db;
+  cursor: ew-resize;
+  border-radius: 3px;
+  border: none;
+}
+
+.viewer-info {
+  display: flex;
+  gap: 40px;
+  margin-top: 60px;
+  color: white;
+  font-size: 1.1em;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.info-label {
+  font-size: 0.9em;
+  opacity: 0.8;
+}
+
+.info-value {
+  font-weight: bold;
+  font-size: 1.2em;
+}
+
+/* Make canvases clickable and smooth */
+canvas {
+  cursor: pointer;
+  image-rendering: auto;
+  image-rendering: smooth;
+  image-rendering: high-quality;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+canvas:hover {
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.5);
 }
 
 /* Responsive */

@@ -1,5 +1,5 @@
-import { compressImage } from '../../src/compression/image-compressor';
-import { ImageData } from '../../src/compression/image-compressor';
+import { compressImage } from '../../src/codecs/dct/dct-compressor';
+import { ImageData } from '../../src/codecs/dct/dct-compressor';
 
 describe('Compression Debug Tests', () => {
   it('should debug white image compression', () => {
@@ -21,7 +21,7 @@ describe('Compression Debug Tests', () => {
     }
 
     // Get strategy to debug
-    const { DeterministicStrategyGenerator } = require('../../src/core/deterministic-strategy');
+    const { DeterministicStrategyGenerator } = require('../../src/codecs/dct/dct-strategy');
     const strategy = DeterministicStrategyGenerator.generateStrategy('TEST-DEVICE');
     console.log('Channel weights:', strategy.channelWeights);
     

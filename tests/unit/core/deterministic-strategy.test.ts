@@ -1,5 +1,5 @@
-import { DeterministicStrategyGenerator } from '../../../src/core/deterministic-strategy';
-import { DeviceStrategy } from '../../../src/core/types';
+import { DeterministicStrategyGenerator } from '../../../src/codecs/dct/dct-strategy';
+import { DCTDeviceStrategy } from '../../../src/codecs/dct/dct-types';
 
 describe('DeterministicStrategyGenerator', () => {
   describe('generateStrategy', () => {

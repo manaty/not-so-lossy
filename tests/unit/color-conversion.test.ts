@@ -1,8 +1,8 @@
 // Since rgbToYCbCr and yCbCrToRgb are not exported, we'll test them indirectly
 // through the compressImage function
 
-import { compressImage, calculatePSNR } from '../../src/compression/image-compressor';
-import { ImageData } from '../../src/compression/image-compressor';
+import { compressImage, calculatePSNR } from '../../src/codecs/dct/dct-compressor';
+import { ImageData } from '../../src/codecs/dct/dct-compressor';
 
 describe('Color Conversion Tests', () => {
   it('should preserve colors correctly through compression/decompression cycle', () => {

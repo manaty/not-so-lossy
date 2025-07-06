@@ -1,6 +1,6 @@
-import { DeterministicStrategyGenerator } from '../core/deterministic-strategy';
-import { DeviceStrategy, CompressedImage, CompressedBlock } from '../core/types';
-import { dct2d, idct2d, quantize, dequantize, zigzagOrder, inverseZigzag } from '../utils/dct';
+import { DeterministicStrategyGenerator } from './dct-strategy';
+import { DCTDeviceStrategy, DCTCompressedImage, DCTCompressedBlock } from './dct-types';
+import { dct2d, idct2d, quantize, dequantize, zigzagOrder, inverseZigzag } from './dct-utils';
 
 export interface ImageData {
   data: Uint8ClampedArray;
@@ -9,7 +9,7 @@ export interface ImageData {
 }
 
 export interface CompressionResult {
-  compressed: CompressedImage;
+  compressed: DCTCompressedImage;
   size: number;
   preview: ImageData;
 }
@@ -87,7 +87,7 @@ export function compressImage(
   }
   
   // Process in 8x8 blocks
-  const blocks: CompressedBlock[] = [];
+  const blocks: DCTCompressedBlock[] = [];
   const blockWidth = Math.ceil(width / 8);
   const blockHeight = Math.ceil(height / 8);
   
@@ -96,7 +96,7 @@ export function compressImage(
       const x = bx * 8;
       const y = by * 8;
       
-      const compressedBlock: CompressedBlock = {
+      const compressedBlock: DCTCompressedBlock = {
         position: { x: bx, y: by }
       };
       
@@ -189,7 +189,7 @@ export function compressImage(
     }
   }
   
-  const compressed: CompressedImage = {
+  const compressed: DCTCompressedImage = {
     deviceId,
     width,
     height,
@@ -242,8 +242,8 @@ export function compressImage(
  * Decompress an image using the device's strategy
  */
 export function decompressImage(
-  compressed: CompressedImage, 
-  strategy?: DeviceStrategy
+  compressed: DCTCompressedImage, 
+  strategy?: DCTDeviceStrategy
 ): ImageData {
   if (!strategy) {
     strategy = DeterministicStrategyGenerator.generateStrategy(compressed.deviceId);
@@ -361,82 +361,69 @@ export function decompressImage(
  * Reconstruct image from multiple compressed versions
  */
 export function reconstructFromMultiple(
-  compressedVersions: CompressedImage[]
+  compressedVersions: DCTCompressedImage[]
 ): ImageData {
   if (compressedVersions.length === 0) {
     throw new Error('No compressed versions provided');
   }
   
   const { width, height } = compressedVersions[0];
-  const imageData = new Uint8ClampedArray(width * height * 4);
   
-  // Collect all strategies
-  const strategies = compressedVersions.map(v => 
-    DeterministicStrategyGenerator.generateStrategy(v.deviceId)
-  );
+  // Simple implementation: Use the highest quality device's image as base
+  // and only average when qualities are similar
+  const sortedByQuality = [...compressedVersions].sort((a, b) => b.qualityFactor - a.qualityFactor);
+  const bestQuality = sortedByQuality[0].qualityFactor;
   
-  // Reconstruct YCbCr channels by combining all sources
-  const yChannel: number[][] = Array(height).fill(0).map(() => Array(width).fill(0));
-  const cbChannel: number[][] = Array(height).fill(0).map(() => Array(width).fill(0));
-  const crChannel: number[][] = Array(height).fill(0).map(() => Array(width).fill(0));
+  // If all devices have similar quality (within 10%), do simple average
+  const qualityRange = sortedByQuality[0].qualityFactor - sortedByQuality[sortedByQuality.length - 1].qualityFactor;
   
-  const yWeights: number[][] = Array(height).fill(0).map(() => Array(width).fill(0));
-  const cbWeights: number[][] = Array(height).fill(0).map(() => Array(width).fill(0));
-  const crWeights: number[][] = Array(height).fill(0).map(() => Array(width).fill(0));
-  
-  // Process each version
-  compressedVersions.forEach((compressed, versionIdx) => {
-    const strategy = strategies[versionIdx];
-    const decompressed = decompressImage(compressed, strategy);
+  if (qualityRange <= 0.1) {
+    // All similar quality - simple average
+    const imageData = new Uint8ClampedArray(width * height * 4);
+    const decompressedImages = compressedVersions.map(compressed => decompressImage(compressed));
     
-    // Add this version's contribution
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const idx = (y * width + x) * 4;
-        const { y: Y, cb, cr } = rgbToYCbCr(
-          decompressed.data[idx],
-          decompressed.data[idx + 1],
-          decompressed.data[idx + 2]
-        );
-        
-        // Weight by channel importance for this device
-        if (strategy.channelWeights.y > 0.001) {
-          yChannel[y][x] += Y * strategy.channelWeights.y;
-          yWeights[y][x] += strategy.channelWeights.y;
-        }
-        
-        if (strategy.channelWeights.cb > 0.001) {
-          cbChannel[y][x] += cb * strategy.channelWeights.cb;
-          cbWeights[y][x] += strategy.channelWeights.cb;
-        }
-        
-        if (strategy.channelWeights.cr > 0.001) {
-          crChannel[y][x] += cr * strategy.channelWeights.cr;
-          crWeights[y][x] += strategy.channelWeights.cr;
-        }
-      }
+    for (let i = 0; i < imageData.length; i += 4) {
+      let r = 0, g = 0, b = 0;
+      
+      decompressedImages.forEach(img => {
+        r += img.data[i];
+        g += img.data[i + 1];
+        b += img.data[i + 2];
+      });
+      
+      imageData[i] = Math.round(r / decompressedImages.length);
+      imageData[i + 1] = Math.round(g / decompressedImages.length);
+      imageData[i + 2] = Math.round(b / decompressedImages.length);
+      imageData[i + 3] = 255;
     }
-  });
-  
-  // Average and convert back to RGB
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const idx = (y * width + x) * 4;
+    
+    return { data: imageData, width, height };
+  } else {
+    // Mixed qualities - use best quality device(s)
+    // Average only devices within 5% of best quality
+    const threshold = bestQuality - 0.05;
+    const highQualityVersions = sortedByQuality.filter(v => v.qualityFactor >= threshold);
+    
+    const imageData = new Uint8ClampedArray(width * height * 4);
+    const decompressedImages = highQualityVersions.map(compressed => decompressImage(compressed));
+    
+    for (let i = 0; i < imageData.length; i += 4) {
+      let r = 0, g = 0, b = 0;
       
-      const Y = yWeights[y][x] > 0 ? yChannel[y][x] / yWeights[y][x] : 128;
-      const cb = cbWeights[y][x] > 0 ? cbChannel[y][x] / cbWeights[y][x] : 128;
-      const cr = crWeights[y][x] > 0 ? crChannel[y][x] / crWeights[y][x] : 128;
+      decompressedImages.forEach(img => {
+        r += img.data[i];
+        g += img.data[i + 1];
+        b += img.data[i + 2];
+      });
       
-      const { r, g, b } = yCbCrToRgb(Y, cb, cr);
-      
-      imageData[idx] = r;
-      imageData[idx + 1] = g;
-      imageData[idx + 2] = b;
-      imageData[idx + 3] = 255;
+      imageData[i] = Math.round(r / decompressedImages.length);
+      imageData[i + 1] = Math.round(g / decompressedImages.length);
+      imageData[i + 2] = Math.round(b / decompressedImages.length);
+      imageData[i + 3] = 255;
     }
+    
+    return { data: imageData, width, height };
   }
-  
-  return { data: imageData, width, height };
 }
 
 /**

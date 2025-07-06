@@ -4,7 +4,7 @@ import {
   reconstructFromMultiple,
   calculatePSNR,
   ImageData
-} from '../../../src/compression/image-compressor';
+} from '../../../src/codecs/dct/dct-compressor';
 import { generateTestImage } from '../../fixtures/test-data';
 
 describe('Image Compressor', () => {

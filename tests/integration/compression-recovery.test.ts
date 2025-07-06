@@ -1,5 +1,5 @@
-import { DeterministicStrategyGenerator } from '../../src/core/deterministic-strategy';
-import { dct2d, idct2d, quantize, dequantize, zigzagOrder, inverseZigzag } from '../../src/utils/dct';
+import { DeterministicStrategyGenerator } from '../../src/codecs/dct/dct-strategy';
+import { dct2d, idct2d, quantize, dequantize, zigzagOrder, inverseZigzag } from '../../src/codecs/dct/dct-utils';
 import { TEST_DEVICE_IDS, SAMPLE_8X8_BLOCKS, calculateMSE, calculatePSNR } from '../fixtures/test-data';
 
 describe('Compression and Recovery Integration Tests', () => {

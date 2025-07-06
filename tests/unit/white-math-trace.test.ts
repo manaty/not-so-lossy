@@ -1,4 +1,4 @@
-import { dct2d, idct2d, quantize, dequantize } from '../../src/utils/dct';
+import { dct2d, idct2d, quantize, dequantize } from '../../src/codecs/dct/dct-utils';
 
 describe('White Image Mathematical Trace', () => {
   it('should trace DCT math for white block', () => {

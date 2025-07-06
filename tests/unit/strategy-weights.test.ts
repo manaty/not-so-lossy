@@ -1,4 +1,4 @@
-import { DeterministicStrategyGenerator } from '../../src/core/deterministic-strategy';
+import { DeterministicStrategyGenerator } from '../../src/codecs/dct/dct-strategy';
 
 describe('Strategy Weights Analysis', () => {
   it('should check weights for TEST-DEVICE', () => {

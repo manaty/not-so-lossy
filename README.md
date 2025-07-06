@@ -48,36 +48,69 @@ The system leverages social networks as a natural preservation layer:
 
 ```
 ├── src/                    # Source code
-│   ├── core/              # Core types and deterministic strategy
-│   ├── compression/       # Image compression/decompression algorithms
-│   └── utils/             # DCT and utility functions
+│   ├── core/              # Core types shared across codecs
+│   ├── codecs/            # Compression codec implementations
+│   │   ├── types.ts       # Codec interface definitions
+│   │   ├── codec-manager.ts # Codec selection and management
+│   │   ├── dct/           # DCT codec implementation
+│   │   │   ├── dct-codec.ts
+│   │   │   ├── dct-compressor.ts
+│   │   │   ├── dct-reconstruction.ts
+│   │   │   ├── dct-strategy.ts
+│   │   │   ├── dct-types.ts
+│   │   │   └── dct-utils.ts
+│   │   ├── wavelet/       # Wavelet codec implementation
+│   │   │   └── wavelet-codec.ts
+│   │   └── rle/           # RLE codec implementation
+│   │       └── rle-codec.ts
+│   └── recovery/          # Recovery mechanisms
 ├── tests/                  # Test suite
 │   ├── unit/              # Unit tests
 │   ├── integration/       # Integration tests
 │   └── fixtures/          # Test data and utilities
 ├── demo/                   # Interactive web demo
-│   ├── index.html         # Demo UI
+│   ├── index.html         # Demo UI with codec selector
 │   ├── main.ts            # Demo application logic
 │   └── style.css          # Demo styling
 ├── examples/               # Sample test images
 ├── docs/                   # Documentation
-│   └── research/          # Research notes and algorithms
+│   ├── research/          # Research notes and algorithms
+│   └── codecs/            # Codec-specific documentation
 └── .todo/                  # Task management system
 
 ```
 
 ## 🧪 Implementation Details
 
-### Compression Algorithm
-- Based on JPEG-like DCT (Discrete Cosine Transform)
-- YCbCr color space conversion
-- 8x8 block processing
-- Deterministic frequency selection based on device ID
-- Configurable quality factor
+### Modular Codec Architecture
+The system supports multiple compression algorithms through a pluggable codec interface:
+
+#### Available Codecs
+1. **DCT (Discrete Cosine Transform)**
+   - JPEG-like compression with 8x8 block processing
+   - YCbCr color space conversion
+   - Deterministic frequency selection based on device ID
+   - Best quality/compression ratio
+
+2. **QDCT (Quantization-based DCT)**
+   - Progressive quantization matrix adaptation
+   - 64 discrete compression levels
+   - Incremental compression support
+   - Efficient recompression to higher levels
+
+3. **Wavelet (Haar Transform)**
+   - Hierarchical decomposition of image data
+   - Better edge preservation than DCT
+   - Experimental implementation
+
+4. **RLE (Run-Length Encoding)**
+   - Simple compression for images with large uniform areas
+   - Demonstration of codec interface flexibility
 
 ### Key Features
+- **Modular Design**: Easy to add new compression algorithms
 - **Deterministic Strategy**: Each device ID maps to a unique compression strategy
-- **Frequency Distribution**: Different devices preserve different DCT coefficients
+- **Codec-agnostic Interface**: Unified API for all compression methods
 - **Multi-source Reconstruction**: Combines information from multiple compressed versions
 - **Quality Metrics**: PSNR calculation for objective quality assessment
 
@@ -90,19 +123,66 @@ The system leverages social networks as a natural preservation layer:
 ## 📊 Demo Features
 
 The interactive demo (`npm run demo`) showcases:
+- **Codec Selection**: Choose between DCT, QDCT, Wavelet, or RLE compression
 - Upload custom images or use provided test images
 - Configure number of virtual devices (1-10)
 - Real-time compression visualization per device
-- Quality adjustment controls for each device
+- Memory-based compression (10MB limit per device)
+- Size slider controls for each device
 - PSNR metrics and file size comparisons
 - Visual reconstruction from multiple sources
+- Live codec switching to compare algorithms
+- Incremental compression with QDCT codec
 
-## 🔬 Research Documentation
+## 🔧 Extending the System
 
-See `docs/research/` for detailed documentation on:
+### Adding a New Codec
+
+1. Create a new directory under `src/codecs/your-codec/`
+2. Implement the `Codec` interface from `src/codecs/types.ts`
+3. Register your codec in `src/codecs/codec-manager.ts`
+
+Example codec structure:
+```typescript
+export class YourCodec implements Codec {
+  name = 'your-codec';
+  
+  compress(image: ImageData, options: CodecOptions): CodecResult {
+    // Your compression logic
+  }
+  
+  decompress(compressed: any, deviceId: string): ImageData {
+    // Your decompression logic
+  }
+  
+  reconstructFromMultiple(compressedVersions: any[]): ImageData {
+    // Your reconstruction logic
+  }
+  
+  calculatePSNR(original: ImageData, compressed: ImageData): number {
+    // PSNR calculation
+  }
+}
+```
+
+## 📚 Documentation
+
+### API Reference
+- [API Documentation](docs/API.md) - Complete API reference and usage examples
+
+### Codec Documentation
+- [Codec Overview](docs/codecs/README.md) - Comparison and selection guide
+- [DCT Codec](docs/codecs/dct-codec.md) - JPEG-like compression details
+- [Wavelet Codec](docs/codecs/wavelet-codec.md) - Haar wavelet transform
+- [RLE Codec](docs/codecs/rle-codec.md) - Run-length encoding
+
+### Research Documentation
 - [JPEG Compression Pipeline](docs/research/jpeg-compression-pipeline.md)
 - [Distribution Strategies](docs/research/distribution-strategies.md)
 - [Deterministic Compression](docs/research/deterministic-compression.md)
+
+### Demo
+- [Demo Guide](demo/README.md) - How to use the interactive demo
 
 ## 📝 Task Management
 
